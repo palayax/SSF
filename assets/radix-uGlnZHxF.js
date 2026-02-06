@@ -56,3 +56,4 @@ Defaulting to \`null\`.`}var Ia=er,ka=nr,Qe="focusScope.autoFocusOnMount",Je="fo
 If you want to hide the \`${t.titleName}\`, you can wrap it with our VisuallyHidden component.
 
 For more information, see https://radix-ui.com/primitives/docs/components/${t.docsSlug}`;return c.useEffect(()=>{e&&(document.getElementById(e)||console.error(n))},[n,e]),null},Ra="DialogDescriptionWarning",Aa=({contentRef:e,descriptionId:t})=>{const r=`Warning: Missing \`Description\` or \`aria-describedby={undefined}\` for {${Tr(Ra).contentName}}.`;return c.useEffect(()=>{var i;const o=(i=e.current)==null?void 0:i.getAttribute("aria-describedby");t&&o&&(document.getElementById(t)||console.warn(r))},[r,e,t]),null},ja=vr,$a=wr,Wa=xr,Ba=br,Ha=Cr,Va=Pr,Ua=Ar;export{La as A,Ma as C,Va as D,ka as I,Wa as O,_a as P,Da as R,Na as T,Ta as a,Ia as b,ja as c,$a as d,Ba as e,Ha as f,Ua as g,b as j};
+//# sourceMappingURL=radix-uGlnZHxF.js.map
