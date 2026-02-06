@@ -23,22 +23,76 @@ import {
   Download,
   Server,
   HardDriveDownload,
+  Tag,
+  X,
+  Search,
+  Radar,
+  Wifi,
+  Scan,
+  ChevronDown,
+  ChevronRight,
+  Loader2,
+  Network,
+  Eye,
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import type { ConnectorType } from '@/types';
 
+// Mock auto-discovery results
+interface DiscoveryResult {
+  id: string;
+  name: string;
+  type: string;
+  ip: string;
+  os?: string;
+  status: 'online' | 'offline' | 'filtered';
+  ports: number[];
+  services: string[];
+  risk: 'critical' | 'high' | 'medium' | 'low';
+}
+
+const MOCK_DISCOVERY_RESULTS: Record<string, DiscoveryResult[]> = {
+  servers: [
+    { id: 'd1', name: 'DC-MAIN-01', type: 'Domain Controller', ip: '10.0.1.10', os: 'Windows Server 2022', status: 'online', ports: [53, 88, 389, 445, 636], services: ['DNS', 'Kerberos', 'LDAP', 'SMB'], risk: 'critical' },
+    { id: 'd2', name: 'DC-BACKUP-01', type: 'Domain Controller', ip: '10.0.1.11', os: 'Windows Server 2022', status: 'online', ports: [53, 88, 389, 445], services: ['DNS', 'Kerberos', 'LDAP', 'SMB'], risk: 'critical' },
+    { id: 'd3', name: 'FS-FINANCE-01', type: 'File Server', ip: '10.0.2.20', os: 'Windows Server 2019', status: 'online', ports: [445, 3389], services: ['SMB', 'RDP'], risk: 'high' },
+    { id: 'd4', name: 'SQL-DB-01', type: 'Database Server', ip: '10.0.3.30', os: 'Windows Server 2019', status: 'online', ports: [1433, 3389], services: ['MSSQL', 'RDP'], risk: 'high' },
+    { id: 'd5', name: 'WEB-APP-01', type: 'Web Server', ip: '10.0.4.40', os: 'Ubuntu 22.04', status: 'online', ports: [80, 443, 22], services: ['HTTP', 'HTTPS', 'SSH'], risk: 'medium' },
+    { id: 'd6', name: 'EXCH-01', type: 'Exchange Server', ip: '10.0.1.15', os: 'Windows Server 2019', status: 'online', ports: [25, 443, 587], services: ['SMTP', 'HTTPS', 'Submission'], risk: 'high' },
+  ],
+  endpoints: [
+    { id: 'e1', name: 'WS-FIN-042', type: 'Workstation', ip: '10.0.10.42', os: 'Windows 11 Pro', status: 'online', ports: [135, 445], services: ['RPC', 'SMB'], risk: 'high' },
+    { id: 'e2', name: 'WS-HR-015', type: 'Workstation', ip: '10.0.10.15', os: 'Windows 11 Pro', status: 'online', ports: [135, 445], services: ['RPC', 'SMB'], risk: 'medium' },
+    { id: 'e3', name: 'WS-IT-001', type: 'Workstation', ip: '10.0.10.1', os: 'Windows 11 Pro', status: 'online', ports: [135, 445, 3389], services: ['RPC', 'SMB', 'RDP'], risk: 'medium' },
+    { id: 'e4', name: 'LPT-EXEC-003', type: 'Laptop', ip: '10.0.11.3', os: 'macOS Sonoma', status: 'offline', ports: [], services: [], risk: 'low' },
+  ],
+  peripherals: [
+    { id: 'p1', name: 'FW-EDGE-01', type: 'Firewall', ip: '10.0.0.1', status: 'online', ports: [443, 8443], services: ['HTTPS Mgmt', 'VPN'], risk: 'critical' },
+    { id: 'p2', name: 'SW-CORE-01', type: 'Core Switch', ip: '10.0.0.2', status: 'online', ports: [22, 443], services: ['SSH', 'HTTPS'], risk: 'high' },
+    { id: 'p3', name: 'WAF-01', type: 'Web App Firewall', ip: '10.0.0.5', status: 'online', ports: [443, 8443], services: ['HTTPS', 'Mgmt'], risk: 'high' },
+    { id: 'p4', name: 'IDS-01', type: 'IDS/IPS', ip: '10.0.0.6', status: 'online', ports: [443], services: ['HTTPS Mgmt'], risk: 'medium' },
+  ],
+  cloud: [
+    { id: 'c1', name: 'AWS Account (Prod)', type: 'AWS', ip: 'aws:123456789012', status: 'online', ports: [], services: ['EC2', 'S3', 'RDS', 'Lambda', 'CloudTrail'], risk: 'high' },
+    { id: 'c2', name: 'Azure Tenant', type: 'Azure', ip: 'azure:tenant-abc-123', status: 'online', ports: [], services: ['Azure AD', 'VMs', 'Storage', 'Key Vault'], risk: 'critical' },
+    { id: 'c3', name: 'O365 Tenant', type: 'Office 365', ip: 'o365:tenant-abc-123', status: 'online', ports: [], services: ['Exchange Online', 'SharePoint', 'Teams', 'OneDrive'], risk: 'high' },
+  ],
+  internet: [
+    { id: 'i1', name: 'mail.company.com', type: 'SMTP Gateway', ip: '203.0.113.10', status: 'online', ports: [25, 443, 587], services: ['SMTP', 'HTTPS', 'Submission'], risk: 'high' },
+    { id: 'i2', name: 'vpn.company.com', type: 'VPN Gateway', ip: '203.0.113.11', status: 'online', ports: [443, 1194], services: ['HTTPS', 'OpenVPN'], risk: 'critical' },
+    { id: 'i3', name: 'app.company.com', type: 'Web Application', ip: '203.0.113.20', status: 'online', ports: [80, 443], services: ['HTTP', 'HTTPS'], risk: 'high' },
+    { id: 'i4', name: 'api.company.com', type: 'REST API', ip: '203.0.113.21', status: 'online', ports: [443], services: ['HTTPS'], risk: 'medium' },
+    { id: 'i5', name: 'ftp.company.com', type: 'FTP Server', ip: '203.0.113.30', status: 'filtered', ports: [21, 990], services: ['FTP', 'FTPS'], risk: 'high' },
+  ],
+};
+
 /**
  * Connector Configuration Page
- *
- * Configure data source connectors:
- * - Endpoints (Windows, Linux, macOS)
- * - Cloud Services (AWS, Azure, GCP, O365, GSuite)
- * - Peripherals (Firewall, Storage, Email Gateway, Proxy/WAF)
  */
 export default function ConnectorConfigPage() {
   const navigate = useNavigate();
   const { goToNextStep, goToPreviousStep } = useSessionStore();
-  const [activeTab, setActiveTab] = useState<'endpoints' | 'cloud' | 'peripherals' | 'collector'>('endpoints');
+  const [activeTab, setActiveTab] = useState<'endpoints' | 'cloud' | 'peripherals' | 'collector' | 'discovery'>('endpoints');
   const [configuredConnectors, setConfiguredConnectors] = useState<Set<ConnectorType>>(new Set());
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedConnector, setSelectedConnector] = useState<ConnectorType | null>(null);
@@ -49,6 +103,19 @@ export default function ConnectorConfigPage() {
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [collectorBuilt, setCollectorBuilt] = useState(false);
   const [buildingCollector, setBuildingCollector] = useState(false);
+
+  // Tags state per connector
+  const [connectorTags, setConnectorTags] = useState<Record<string, string[]>>({});
+  const [tagInput, setTagInput] = useState('');
+  const [editingTagsFor, setEditingTagsFor] = useState<string | null>(null);
+
+  // Auto-Discovery state
+  const [discoveryCategory, setDiscoveryCategory] = useState<'servers' | 'endpoints' | 'peripherals' | 'cloud' | 'internet'>('servers');
+  const [discoveryRunning, setDiscoveryRunning] = useState(false);
+  const [discoveryResults, setDiscoveryResults] = useState<DiscoveryResult[]>([]);
+  const [discoveryDomain, setDiscoveryDomain] = useState('');
+  const [discoveryIPRange, setDiscoveryIPRange] = useState('');
+  const [expandedDiscovery, setExpandedDiscovery] = useState<string | null>(null);
 
   const handleBack = () => {
     goToPreviousStep();
@@ -71,6 +138,30 @@ export default function ConnectorConfigPage() {
     }
     setModalOpen(false);
     setSelectedConnector(null);
+  };
+
+  const handleAddTag = (connectorKey: string) => {
+    if (tagInput.trim()) {
+      const existing = connectorTags[connectorKey] || [];
+      if (!existing.includes(tagInput.trim())) {
+        setConnectorTags({ ...connectorTags, [connectorKey]: [...existing, tagInput.trim()] });
+      }
+      setTagInput('');
+    }
+  };
+
+  const handleRemoveTag = (connectorKey: string, tag: string) => {
+    const existing = connectorTags[connectorKey] || [];
+    setConnectorTags({ ...connectorTags, [connectorKey]: existing.filter((t) => t !== tag) });
+  };
+
+  const handleRunDiscovery = () => {
+    setDiscoveryRunning(true);
+    setDiscoveryResults([]);
+    setTimeout(() => {
+      setDiscoveryResults(MOCK_DISCOVERY_RESULTS[discoveryCategory] || []);
+      setDiscoveryRunning(false);
+    }, 3000);
   };
 
   const getConnectorIcon = (type: ConnectorType) => {
@@ -112,13 +203,13 @@ export default function ConnectorConfigPage() {
       }
     >
       {/* Tab Navigation */}
-      <div className="flex gap-2 mb-6 border-b border-slate-200 dark:border-slate-700">
+      <div className="flex gap-2 mb-6 border-b border-slate-200 dark:border-slate-700 overflow-x-auto">
         {CONNECTOR_CATEGORIES.map((category) => (
           <Tooltip key={category.id} content={category.description}>
             <button
               onClick={() => setActiveTab(category.id)}
               className={cn(
-                'px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors',
+                'px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap',
                 activeTab === category.id
                   ? 'border-forensic-500 text-forensic-600 dark:text-forensic-400'
                   : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
@@ -132,7 +223,7 @@ export default function ConnectorConfigPage() {
           <button
             onClick={() => setActiveTab('collector')}
             className={cn(
-              'px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors',
+              'px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap',
               activeTab === 'collector'
                 ? 'border-forensic-500 text-forensic-600 dark:text-forensic-400'
                 : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
@@ -141,10 +232,24 @@ export default function ConnectorConfigPage() {
             Agentless / Offline
           </button>
         </Tooltip>
+        <Tooltip content="Auto-discover servers, endpoints, peripherals, cloud, and internet-facing assets">
+          <button
+            onClick={() => setActiveTab('discovery')}
+            className={cn(
+              'px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap flex items-center gap-1.5',
+              activeTab === 'discovery'
+                ? 'border-forensic-500 text-forensic-600 dark:text-forensic-400'
+                : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+            )}
+          >
+            <Radar className="w-3.5 h-3.5" />
+            Auto-Discovery
+          </button>
+        </Tooltip>
       </div>
 
       {/* Connector Grid - Existing connectors */}
-      {activeTab !== 'collector' && (
+      {activeTab !== 'collector' && activeTab !== 'discovery' && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {currentCategory?.connectors.map((connectorType) => {
             const info = CONNECTOR_INFO[connectorType];
@@ -159,6 +264,13 @@ export default function ConnectorConfigPage() {
                 icon={getConnectorIcon(connectorType)}
                 isConfigured={isConfigured}
                 onConfigure={() => handleConfigureConnector(connectorType)}
+                tags={connectorTags[connectorType] || []}
+                isEditingTags={editingTagsFor === connectorType}
+                onToggleEditTags={() => setEditingTagsFor(editingTagsFor === connectorType ? null : connectorType)}
+                tagInput={editingTagsFor === connectorType ? tagInput : ''}
+                onTagInputChange={(v) => setTagInput(v)}
+                onAddTag={() => handleAddTag(connectorType)}
+                onRemoveTag={(tag) => handleRemoveTag(connectorType, tag)}
               />
             );
           })}
@@ -246,6 +358,203 @@ export default function ConnectorConfigPage() {
                   </div>
                 ))}
               </div>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {/* Auto-Discovery Tab */}
+      {activeTab === 'discovery' && (
+        <div className="space-y-6">
+          {/* Discovery Configuration */}
+          <Card className="bg-gradient-to-br from-forensic-50 to-white dark:from-forensic-900/20 dark:to-slate-800">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-forensic-100 dark:bg-forensic-900/30 rounded-lg">
+                <Radar className="w-6 h-6 text-forensic-600 dark:text-forensic-400" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Auto-Discovery</h2>
+                <p className="text-sm text-slate-500">Discover assets automatically based on domain, IP ranges, and credentials</p>
+              </div>
+            </div>
+
+            {/* Input Fields */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="label">Domain / Tenant</label>
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="e.g., company.com or Azure Tenant ID"
+                  value={discoveryDomain}
+                  onChange={(e) => setDiscoveryDomain(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="label">IP Range / CIDR</label>
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="e.g., 10.0.0.0/16 or 192.168.1.0/24"
+                  value={discoveryIPRange}
+                  onChange={(e) => setDiscoveryIPRange(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Discovery Category Selection */}
+            <div className="mb-4">
+              <label className="label mb-2 block">Discovery Scope</label>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                {([
+                  { id: 'servers', label: 'Servers', icon: <Server className="w-4 h-4" />, desc: 'DCs, File Servers, DBs' },
+                  { id: 'endpoints', label: 'Endpoints', icon: <Monitor className="w-4 h-4" />, desc: 'Workstations, Laptops' },
+                  { id: 'peripherals', label: 'Peripherals', icon: <Shield className="w-4 h-4" />, desc: 'Firewalls, Switches, IDS' },
+                  { id: 'cloud', label: 'Cloud Services', icon: <Cloud className="w-4 h-4" />, desc: 'AWS, Azure, O365, GCP' },
+                  { id: 'internet', label: 'Internet-Facing', icon: <Globe className="w-4 h-4" />, desc: 'Public IPs & Services' },
+                ] as const).map((cat) => (
+                  <button
+                    key={cat.id}
+                    onClick={() => setDiscoveryCategory(cat.id)}
+                    className={cn(
+                      'flex flex-col items-center gap-1.5 p-3 rounded-lg border text-xs font-medium transition-colors',
+                      discoveryCategory === cat.id
+                        ? 'border-forensic-500 bg-forensic-50 text-forensic-700 dark:bg-forensic-900/20 dark:text-forensic-300'
+                        : 'border-slate-200 dark:border-slate-700 text-slate-500 hover:border-slate-300'
+                    )}
+                  >
+                    {cat.icon}
+                    {cat.label}
+                    <span className="text-[10px] text-slate-400 font-normal">{cat.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Credentials for Discovery */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+              <div>
+                <label className="label">Username / Access Key</label>
+                <input type="text" className="input" placeholder="Discovery account credentials" />
+              </div>
+              <div>
+                <label className="label">Password / Secret Key</label>
+                <input type="password" className="input" placeholder="Authentication secret" />
+              </div>
+              <div className="flex items-end">
+                <Tooltip content={`Run discovery scan for ${discoveryCategory}`}>
+                  <Button
+                    onClick={handleRunDiscovery}
+                    isLoading={discoveryRunning}
+                    leftIcon={<Scan className="w-4 h-4" />}
+                    className="w-full"
+                  >
+                    {discoveryRunning ? 'Scanning...' : 'Run Discovery'}
+                  </Button>
+                </Tooltip>
+              </div>
+            </div>
+          </Card>
+
+          {/* Discovery Progress */}
+          {discoveryRunning && (
+            <Card className="border-forensic-200 dark:border-forensic-800">
+              <div className="flex items-center gap-3 p-2">
+                <Loader2 className="w-5 h-5 animate-spin text-forensic-500" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Scanning network for {discoveryCategory}...</p>
+                  <div className="flex gap-4 mt-1 text-xs text-slate-500">
+                    <span className="flex items-center gap-1"><Wifi className="w-3 h-3" /> Sending probes</span>
+                    <span className="flex items-center gap-1"><Search className="w-3 h-3" /> Resolving hostnames</span>
+                    <span className="flex items-center gap-1"><Eye className="w-3 h-3" /> Fingerprinting services</span>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          )}
+
+          {/* Discovery Results */}
+          {discoveryResults.length > 0 && (
+            <Card>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Network className="w-5 h-5 text-forensic-500" />
+                  <h3 className="font-semibold text-slate-900 dark:text-slate-100">
+                    Discovery Results — {discoveryResults.length} assets found
+                  </h3>
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" leftIcon={<Download className="w-3 h-3" />}>Export</Button>
+                  <Button size="sm" leftIcon={<Settings className="w-3 h-3" />}>Configure All</Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                {discoveryResults.map((result) => (
+                  <div key={result.id} className={cn(
+                    'border rounded-lg transition-all',
+                    result.risk === 'critical' ? 'border-red-200 dark:border-red-900/50' :
+                    result.risk === 'high' ? 'border-orange-200 dark:border-orange-900/50' :
+                    'border-slate-200 dark:border-slate-700'
+                  )}>
+                    <button
+                      onClick={() => setExpandedDiscovery(expandedDiscovery === result.id ? null : result.id)}
+                      className="w-full flex items-center gap-3 p-3 text-left"
+                    >
+                      <div className={cn(
+                        'w-2 h-2 rounded-full',
+                        result.status === 'online' ? 'bg-green-500' :
+                        result.status === 'filtered' ? 'bg-yellow-500' : 'bg-slate-300'
+                      )} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-sm text-slate-900 dark:text-slate-100">{result.name}</span>
+                          <span className="text-xs text-slate-400">{result.type}</span>
+                        </div>
+                        <span className="text-xs font-mono text-slate-500">{result.ip}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={cn(
+                          'px-2 py-0.5 rounded text-xs font-medium',
+                          result.risk === 'critical' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                          result.risk === 'high' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
+                          result.risk === 'medium' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
+                          'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                        )}>{result.risk}</span>
+                        <span className={cn(
+                          'px-2 py-0.5 rounded text-xs',
+                          result.status === 'online' ? 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400' :
+                          result.status === 'filtered' ? 'bg-yellow-50 text-yellow-600' : 'bg-slate-100 text-slate-400'
+                        )}>{result.status}</span>
+                        {expandedDiscovery === result.id ? <ChevronDown className="w-4 h-4 text-slate-400" /> : <ChevronRight className="w-4 h-4 text-slate-400" />}
+                      </div>
+                    </button>
+                    {expandedDiscovery === result.id && (
+                      <div className="px-3 pb-3 pt-0">
+                        <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg space-y-2 text-xs">
+                          {result.os && (
+                            <div className="flex gap-2"><span className="text-slate-500 w-20">OS:</span><span className="text-slate-700 dark:text-slate-300">{result.os}</span></div>
+                          )}
+                          <div className="flex gap-2"><span className="text-slate-500 w-20">Open Ports:</span><span className="font-mono text-slate-700 dark:text-slate-300">{result.ports.length > 0 ? result.ports.join(', ') : 'N/A (Cloud)'}</span></div>
+                          <div className="flex gap-2"><span className="text-slate-500 w-20">Services:</span><span className="text-slate-700 dark:text-slate-300">{result.services.join(', ')}</span></div>
+                          <div className="flex gap-2 mt-2">
+                            <Button size="sm" variant="outline" leftIcon={<Settings className="w-3 h-3" />}>Configure Connector</Button>
+                            <Button size="sm" variant="ghost" leftIcon={<Tag className="w-3 h-3" />}>Add Tags</Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {!discoveryRunning && discoveryResults.length === 0 && (
+            <Card className="text-center py-12">
+              <Radar className="w-12 h-12 mx-auto text-slate-300 mb-3" />
+              <p className="text-slate-500 text-sm">Configure domain, IP range, and credentials above, then run discovery</p>
+              <p className="text-slate-400 text-xs mt-1">Scans for servers, endpoints, peripherals, cloud services, and internet-facing assets</p>
             </Card>
           )}
         </div>
@@ -616,7 +925,7 @@ export default function ConnectorConfigPage() {
 }
 
 /**
- * Connector Card Component
+ * Connector Card Component with Tags
  */
 interface ConnectorCardProps {
   type: ConnectorType;
@@ -625,6 +934,13 @@ interface ConnectorCardProps {
   icon: React.ReactNode;
   isConfigured: boolean;
   onConfigure: () => void;
+  tags: string[];
+  isEditingTags: boolean;
+  onToggleEditTags: () => void;
+  tagInput: string;
+  onTagInputChange: (v: string) => void;
+  onAddTag: () => void;
+  onRemoveTag: (tag: string) => void;
 }
 
 function ConnectorCard({
@@ -633,6 +949,13 @@ function ConnectorCard({
   icon,
   isConfigured,
   onConfigure,
+  tags,
+  isEditingTags,
+  onToggleEditTags,
+  tagInput,
+  onTagInputChange,
+  onAddTag,
+  onRemoveTag,
 }: ConnectorCardProps) {
   return (
     <Card className={cn(isConfigured && 'ring-2 ring-green-500 ring-offset-2 dark:ring-offset-slate-900')}>
@@ -650,6 +973,44 @@ function ConnectorCard({
             )}
           </div>
           <p className="text-sm text-slate-500 mt-1">{description}</p>
+
+          {/* Tags Display */}
+          {tags.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 bg-forensic-50 dark:bg-forensic-900/20 text-forensic-600 dark:text-forensic-400 text-xs rounded-full border border-forensic-200 dark:border-forensic-800"
+                >
+                  <Tag className="w-2.5 h-2.5" />
+                  {tag}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onRemoveTag(tag); }}
+                    className="hover:text-red-500 transition-colors ml-0.5"
+                  >
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Tag Edit Inline */}
+          {isEditingTags && (
+            <div className="flex items-center gap-1 mt-2">
+              <input
+                type="text"
+                value={tagInput}
+                onChange={(e) => onTagInputChange(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); onAddTag(); }}}
+                placeholder="Add tag..."
+                className="flex-1 text-xs px-2 py-1 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:outline-none focus:border-forensic-400"
+              />
+              <Button size="sm" variant="ghost" onClick={onAddTag}>
+                <CheckCircle className="w-3 h-3" />
+              </Button>
+            </div>
+          )}
         </div>
       </div>
       <div className="mt-4 flex items-center gap-2">
@@ -663,8 +1024,18 @@ function ConnectorCard({
             {isConfigured ? 'Reconfigure' : 'Configure'}
           </Button>
         </Tooltip>
+        <Tooltip content="Add tags to categorize this resource">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={onToggleEditTags}
+            leftIcon={<Tag className="w-3.5 h-3.5" />}
+          >
+            Tags
+          </Button>
+        </Tooltip>
         <Tooltip content="Use simulated data instead of real connection">
-          <label className="flex items-center gap-1 text-xs text-slate-500 cursor-pointer">
+          <label className="flex items-center gap-1 text-xs text-slate-500 cursor-pointer ml-auto">
             <input type="checkbox" defaultChecked className="rounded w-3 h-3" />
             Mock
           </label>

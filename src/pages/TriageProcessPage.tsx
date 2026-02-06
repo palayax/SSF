@@ -20,6 +20,8 @@ import {
   KeyRound,
   User,
   Loader2,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { formatTimestamp } from '@/utils/formatters';
@@ -106,12 +108,6 @@ interface FindingCount {
 
 /**
  * Triage Process Page
- *
- * Simulated forensic triage:
- * - Progress dashboard
- * - Phase cards
- * - Activity feed
- * - Findings summary
  */
 export default function TriageProcessPage() {
   const navigate = useNavigate();
@@ -137,6 +133,7 @@ export default function TriageProcessPage() {
   const [ctiSearching, setCtiSearching] = useState(false);
   const [ctiResults, setCtiResults] = useState<CTIResult[]>([]);
   const [ctiSearchType, setCtiSearchType] = useState<'all' | 'pii' | 'credentials' | 'darknet'>('all');
+  const [showCTI, setShowCTI] = useState(false);
 
   const activityRef = useRef<HTMLDivElement>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -299,7 +296,7 @@ export default function TriageProcessPage() {
         />
       }
     >
-      {/* Overall Progress */}
+      {/* Overall Progress with integrated CTI */}
       <Card className="mb-6">
         <div className="flex flex-col sm:flex-row items-center gap-6">
           <CircularProgress
@@ -324,7 +321,7 @@ export default function TriageProcessPage() {
                 ? 'Processing forensic data...'
                 : 'Click Start to begin the automated triage process'}
             </p>
-            <div className="mt-4 flex gap-2 justify-center sm:justify-start">
+            <div className="mt-4 flex gap-2 justify-center sm:justify-start flex-wrap">
               {!isRunning && overallProgress < 100 && (
                 <Tooltip content="Begin automated forensic triage">
                   <Button onClick={handleStart} leftIcon={<Play className="w-4 h-4" />}>
@@ -343,9 +340,108 @@ export default function TriageProcessPage() {
                   </Button>
                 </Tooltip>
               )}
+              {/* CTI Toggle Button - integrated in Ready to Start area */}
+              <Tooltip content="Open Cyber Threat Intelligence (CTI) OSINT search">
+                <Button
+                  variant={showCTI ? 'primary' : 'outline'}
+                  onClick={() => setShowCTI(!showCTI)}
+                  leftIcon={<Globe className="w-4 h-4" />}
+                >
+                  CTI / OSINT
+                </Button>
+              </Tooltip>
             </div>
           </div>
         </div>
+
+        {/* Integrated CTI Panel (collapsible within Ready to Start) */}
+        {showCTI && (
+          <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
+            <div className="flex items-center gap-2 mb-4">
+              <Globe className="w-5 h-5 text-forensic-500" />
+              <h4 className="font-semibold text-slate-900 dark:text-slate-100">Cyber Threat Intelligence (CTI)</h4>
+              <span className="text-xs text-slate-400">OSINT search for PII, credentials, darknet mentions</span>
+            </div>
+
+            {/* Search Controls */}
+            <div className="flex flex-wrap gap-3 mb-4">
+              <div className="flex-1 min-w-[200px] relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  type="text"
+                  value={ctiQuery}
+                  onChange={(e) => setCtiQuery(e.target.value)}
+                  placeholder="Search domain, email, IP, or keyword..."
+                  className="input pl-10"
+                />
+              </div>
+              <div className="flex gap-1">
+                {([
+                  { id: 'all', label: 'All Sources', icon: <Globe className="w-3 h-3" /> },
+                  { id: 'pii', label: 'PII / Leaks', icon: <User className="w-3 h-3" /> },
+                  { id: 'credentials', label: 'Credentials', icon: <KeyRound className="w-3 h-3" /> },
+                  { id: 'darknet', label: 'Darknet', icon: <Eye className="w-3 h-3" /> },
+                ] as const).map((type) => (
+                  <Tooltip key={type.id} content={`Search ${type.label}`}>
+                    <button
+                      onClick={() => setCtiSearchType(type.id)}
+                      className={cn(
+                        'flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors',
+                        ctiSearchType === type.id
+                          ? 'bg-forensic-100 text-forensic-700 dark:bg-forensic-900/30 dark:text-forensic-300'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-700'
+                      )}
+                    >
+                      {type.icon}
+                      {type.label}
+                    </button>
+                  </Tooltip>
+                ))}
+              </div>
+              <Tooltip content="Search public OSINT sources and darknet databases">
+                <Button
+                  onClick={handleCTISearch}
+                  isLoading={ctiSearching}
+                  leftIcon={<Search className="w-4 h-4" />}
+                  size="sm"
+                >
+                  Search CTI
+                </Button>
+              </Tooltip>
+            </div>
+
+            {/* Search Results */}
+            {ctiSearching && (
+              <div className="flex items-center gap-3 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg mb-3">
+                <Loader2 className="w-5 h-5 animate-spin text-forensic-500" />
+                <div>
+                  <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Searching threat intelligence sources...</p>
+                  <p className="text-xs text-slate-500">Querying OSINT databases, breach databases, paste sites, darknet forums</p>
+                </div>
+              </div>
+            )}
+
+            {ctiResults.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-sm text-slate-500">
+                  <AlertTriangle className="w-4 h-4 text-yellow-500" />
+                  <span>{ctiResults.length} results found across open and dark sources</span>
+                </div>
+                {ctiResults.map((result) => (
+                  <CTIResultCard key={result.id} result={result} />
+                ))}
+              </div>
+            )}
+
+            {!ctiSearching && ctiResults.length === 0 && (
+              <div className="text-center py-4 text-slate-400">
+                <Globe className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">Run a CTI search to discover exposed data, leaked credentials, and darknet mentions</p>
+                <p className="text-xs mt-1">Sources: OSINT databases, breach databases, paste sites, darknet forums, public repos</p>
+              </div>
+            )}
+          </div>
+        )}
       </Card>
 
       {/* Phase Progress Cards */}
@@ -419,94 +515,6 @@ export default function TriageProcessPage() {
           </Card>
         </div>
       </div>
-      {/* CTI / OSINT Intelligence Panel */}
-      <div className="mt-6">
-        <Card>
-          <CardHeader
-            title="Cyber Threat Intelligence (CTI)"
-            description="OSINT search for PII, leaked credentials, and darknet mentions"
-          />
-          <div className="mt-4 space-y-4">
-            {/* Search Controls */}
-            <div className="flex flex-wrap gap-3">
-              <div className="flex-1 min-w-[200px] relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input
-                  type="text"
-                  value={ctiQuery}
-                  onChange={(e) => setCtiQuery(e.target.value)}
-                  placeholder="Search domain, email, IP, or keyword..."
-                  className="input pl-10"
-                />
-              </div>
-              <div className="flex gap-1">
-                {([
-                  { id: 'all', label: 'All Sources', icon: <Globe className="w-3 h-3" /> },
-                  { id: 'pii', label: 'PII / Leaks', icon: <User className="w-3 h-3" /> },
-                  { id: 'credentials', label: 'Credentials', icon: <KeyRound className="w-3 h-3" /> },
-                  { id: 'darknet', label: 'Darknet', icon: <Eye className="w-3 h-3" /> },
-                ] as const).map((type) => (
-                  <Tooltip key={type.id} content={`Search ${type.label}`}>
-                    <button
-                      onClick={() => setCtiSearchType(type.id)}
-                      className={cn(
-                        'flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors',
-                        ctiSearchType === type.id
-                          ? 'bg-forensic-100 text-forensic-700 dark:bg-forensic-900/30 dark:text-forensic-300'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-700'
-                      )}
-                    >
-                      {type.icon}
-                      {type.label}
-                    </button>
-                  </Tooltip>
-                ))}
-              </div>
-              <Tooltip content="Search public OSINT sources and darknet databases">
-                <Button
-                  onClick={handleCTISearch}
-                  isLoading={ctiSearching}
-                  leftIcon={<Search className="w-4 h-4" />}
-                  size="sm"
-                >
-                  Search CTI
-                </Button>
-              </Tooltip>
-            </div>
-
-            {/* Search Results */}
-            {ctiSearching && (
-              <div className="flex items-center gap-3 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
-                <Loader2 className="w-5 h-5 animate-spin text-forensic-500" />
-                <div>
-                  <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Searching threat intelligence sources...</p>
-                  <p className="text-xs text-slate-500">Querying OSINT databases, breach databases, paste sites, darknet forums</p>
-                </div>
-              </div>
-            )}
-
-            {ctiResults.length > 0 && (
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 text-sm text-slate-500">
-                  <AlertTriangle className="w-4 h-4 text-yellow-500" />
-                  <span>{ctiResults.length} results found across open and dark sources</span>
-                </div>
-                {ctiResults.map((result) => (
-                  <CTIResultCard key={result.id} result={result} />
-                ))}
-              </div>
-            )}
-
-            {!ctiSearching && ctiResults.length === 0 && (
-              <div className="text-center py-6 text-slate-400">
-                <Globe className="w-10 h-10 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">Run a CTI search to discover exposed data, leaked credentials, and darknet mentions</p>
-                <p className="text-xs mt-1">Sources: OSINT databases, breach databases, paste sites, darknet forums, public repos</p>
-              </div>
-            )}
-          </div>
-        </Card>
-      </div>
     </PageContainer>
   );
 }
@@ -543,7 +551,7 @@ function CTIResultCard({ result }: { result: CTIResult }) {
   return (
     <div
       className={cn(
-        'border-l-4 rounded-lg p-4 cursor-pointer transition-colors',
+        'border-l-4 rounded-lg p-3 cursor-pointer transition-colors',
         severityColors[result.severity]
       )}
       onClick={() => setExpanded(!expanded)}
@@ -551,7 +559,7 @@ function CTIResultCard({ result }: { result: CTIResult }) {
       <div className="flex items-start gap-3">
         <div className="text-slate-400 mt-0.5">{typeIcons[result.type]}</div>
         <div className="flex-1">
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
             <span className={cn(
               'px-2 py-0.5 rounded text-xs font-medium',
               result.severity === 'critical' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
@@ -564,14 +572,15 @@ function CTIResultCard({ result }: { result: CTIResult }) {
               {typeLabels[result.type]}
             </span>
             <span className="text-xs text-slate-400 ml-auto">{result.date}</span>
+            {expanded ? <ChevronDown className="w-3 h-3 text-slate-400" /> : <ChevronRight className="w-3 h-3 text-slate-400" />}
           </div>
           <h4 className="text-sm font-medium text-slate-900 dark:text-slate-100">{result.title}</h4>
-          <p className="text-xs text-slate-500 mt-1">{result.description}</p>
-          <p className="text-xs text-slate-400 mt-1">Source: {result.source}</p>
+          <p className="text-xs text-slate-500 mt-0.5">{result.description}</p>
+          <p className="text-xs text-slate-400 mt-0.5">Source: {result.source}</p>
 
           {expanded && (
-            <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
-              <p className="text-xs font-medium text-slate-500 uppercase mb-2">Indicators Found</p>
+            <div className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+              <p className="text-xs font-medium text-slate-500 uppercase mb-1">Indicators Found</p>
               <div className="space-y-1">
                 {result.indicators.map((indicator, idx) => (
                   <div key={idx} className="flex items-center gap-2 text-xs">

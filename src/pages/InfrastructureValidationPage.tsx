@@ -20,23 +20,81 @@ import {
   Shield,
   Database,
   Cloud,
-  Globe,
   ChevronDown,
   ChevronRight,
   Layers,
   ArrowRight,
+  Lock,
+  Key,
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import type { SystemValidation } from '@/types';
 
+// ==================== MOCK DEMO DATA ====================
+const MOCK_SYSTEMS = [
+  { id: 'sys-1', hostname: 'DC-MAIN-01', ip: '10.0.1.10', role: 'Primary Domain Controller', os: 'Windows Server 2022', criticality: 'critical' as const, status: 'verified' as const, services: ['DNS', 'Kerberos', 'LDAP', 'GPO'], lastSeen: '2 min ago', cpu: 12, memory: 68, disk: 45 },
+  { id: 'sys-2', hostname: 'DC-BACKUP-01', ip: '10.0.1.11', role: 'Backup Domain Controller', os: 'Windows Server 2022', criticality: 'critical' as const, status: 'verified' as const, services: ['DNS', 'Kerberos', 'LDAP'], lastSeen: '2 min ago', cpu: 8, memory: 52, disk: 38 },
+  { id: 'sys-3', hostname: 'FS-FINANCE-01', ip: '10.0.2.20', role: 'Finance File Server', os: 'Windows Server 2019', criticality: 'high' as const, status: 'verified' as const, services: ['SMB', 'DFS'], lastSeen: '2 min ago', cpu: 25, memory: 71, disk: 82 },
+  { id: 'sys-4', hostname: 'SQL-DB-01', ip: '10.0.3.30', role: 'Primary Database Server', os: 'Windows Server 2019', criticality: 'high' as const, status: 'verified' as const, services: ['MSSQL', 'SQL Agent'], lastSeen: '2 min ago', cpu: 45, memory: 85, disk: 67 },
+  { id: 'sys-5', hostname: 'WEB-APP-01', ip: '10.0.4.40', role: 'Web Application Server', os: 'Ubuntu 22.04 LTS', criticality: 'medium' as const, status: 'verified' as const, services: ['Apache', 'Node.js', 'Redis'], lastSeen: '2 min ago', cpu: 18, memory: 45, disk: 34 },
+  { id: 'sys-6', hostname: 'EXCH-01', ip: '10.0.1.15', role: 'Exchange Server', os: 'Windows Server 2019', criticality: 'high' as const, status: 'failed' as const, services: ['SMTP', 'IMAP', 'OWA'], lastSeen: '15 min ago', cpu: 0, memory: 0, disk: 72 },
+  { id: 'sys-7', hostname: 'BKP-SERVER-01', ip: '10.0.5.50', role: 'Backup Server', os: 'Windows Server 2022', criticality: 'high' as const, status: 'verified' as const, services: ['Veeam B&R', 'SMB'], lastSeen: '2 min ago', cpu: 5, memory: 32, disk: 89 },
+  { id: 'sys-8', hostname: 'PRINT-SRV-01', ip: '10.0.1.25', role: 'Print Server', os: 'Windows Server 2016', criticality: 'low' as const, status: 'verified' as const, services: ['Spooler'], lastSeen: '5 min ago', cpu: 2, memory: 18, disk: 12 },
+];
+
+const MOCK_NETWORKS = [
+  { id: 'net-1', name: 'Corporate LAN', cidr: '10.0.0.0/16', vlan: '10', description: 'Main corporate network segment', devices: 342, gateway: '10.0.0.1', dhcp: true },
+  { id: 'net-2', name: 'Server VLAN', cidr: '10.0.1.0/24', vlan: '20', description: 'Server and infrastructure VLAN', devices: 28, gateway: '10.0.1.1', dhcp: false },
+  { id: 'net-3', name: 'Finance VLAN', cidr: '10.0.2.0/24', vlan: '30', description: 'Isolated finance department network', devices: 45, gateway: '10.0.2.1', dhcp: true },
+  { id: 'net-4', name: 'DMZ', cidr: '10.0.4.0/24', vlan: '40', description: 'De-militarized zone for public-facing services', devices: 8, gateway: '10.0.4.1', dhcp: false },
+  { id: 'net-5', name: 'Guest WiFi', cidr: '192.168.100.0/24', vlan: '99', description: 'Isolated guest wireless network', devices: 12, gateway: '192.168.100.1', dhcp: true },
+];
+
+const MOCK_CLOUD_SERVICES = [
+  { id: 'cld-1', name: 'AWS Production', type: 'AWS', region: 'us-east-1', services: ['EC2 (12)', 'S3 (8 buckets)', 'RDS (3)', 'Lambda (15)', 'CloudTrail'], status: 'active', risk: 'high' },
+  { id: 'cld-2', name: 'Azure AD Tenant', type: 'Azure', region: 'Global', services: ['Azure AD (1,250 users)', 'Conditional Access', 'MFA', 'PIM'], status: 'active', risk: 'critical' },
+  { id: 'cld-3', name: 'Office 365', type: 'O365', region: 'Global', services: ['Exchange Online', 'SharePoint', 'Teams', 'OneDrive'], status: 'active', risk: 'high' },
+  { id: 'cld-4', name: 'GCP Analytics', type: 'GCP', region: 'us-central1', services: ['BigQuery', 'Cloud Functions (4)', 'Storage (2 buckets)'], status: 'active', risk: 'medium' },
+];
+
+const MOCK_DATA_STORES = [
+  { id: 'ds-1', name: 'Finance Share', path: '\\\\FS-FINANCE-01\\Finance', type: 'SMB File Share', size: '2.3 TB', classification: 'Confidential', encryption: 'No', backup: 'Daily' },
+  { id: 'ds-2', name: 'SQL-DB-01\\Production', path: 'MSSQL Instance', type: 'SQL Database', size: '450 GB', classification: 'Highly Confidential', encryption: 'TDE Enabled', backup: 'Hourly' },
+  { id: 'ds-3', name: 'SharePoint Docs', path: 'SharePoint Online', type: 'Cloud Storage', size: '850 GB', classification: 'Internal', encryption: 'At Rest', backup: 'Continuous' },
+  { id: 'ds-4', name: 'Backup Repository', path: '\\\\BKP-SERVER-01\\Backups', type: 'Backup Storage', size: '8.5 TB', classification: 'Critical', encryption: 'AES-256', backup: 'Immutable' },
+  { id: 'ds-5', name: 'AWS S3 - Reports', path: 's3://company-reports', type: 'Object Storage', size: '120 GB', classification: 'Internal', encryption: 'SSE-S3', backup: 'Versioned' },
+];
+
+const MOCK_EMPLOYEES = [
+  { name: 'John Smith', role: 'IT Director', dept: 'IT', access: 'Domain Admin', risk: 'high' as const, lastLogon: '2024-01-15 02:15', mfa: true },
+  { name: 'Sarah Johnson', role: 'CISO', dept: 'Security', access: 'Security Admin', risk: 'high' as const, lastLogon: '2024-01-14 18:30', mfa: true },
+  { name: 'Mike Chen', role: 'Sr. Network Engineer', dept: 'IT', access: 'Network Admin', risk: 'medium' as const, lastLogon: '2024-01-15 01:45', mfa: true },
+  { name: 'Lisa Williams', role: 'Finance Manager', dept: 'Finance', access: 'Finance Share (RW)', risk: 'medium' as const, lastLogon: '2024-01-14 17:00', mfa: true },
+  { name: 'svc-backup', role: 'Service Account', dept: 'System', access: 'Backup Operator', risk: 'high' as const, lastLogon: '2024-01-15 02:30', mfa: false },
+  { name: 'svc-sql', role: 'Service Account', dept: 'System', access: 'SQL Server Agent', risk: 'high' as const, lastLogon: '2024-01-15 02:00', mfa: false },
+  { name: 'admin.jsmith', role: 'Privileged Account', dept: 'IT', access: 'Domain Admin', risk: 'critical' as const, lastLogon: '2024-01-15 02:28', mfa: true },
+  { name: 'helpdesk-svc', role: 'Service Account', dept: 'IT', access: 'Password Reset', risk: 'medium' as const, lastLogon: '2024-01-14 16:00', mfa: false },
+];
+
+const MOCK_SECURITY_CONTROLS = [
+  { id: 'sc-1', name: 'Endpoint Protection', vendor: 'CrowdStrike Falcon', coverage: '92%', status: 'active', lastUpdate: '2024-01-14', health: 'good' },
+  { id: 'sc-2', name: 'Firewall (Edge)', vendor: 'Palo Alto PA-5220', coverage: '100%', status: 'active', lastUpdate: '2024-01-13', health: 'good' },
+  { id: 'sc-3', name: 'SIEM', vendor: 'Splunk Enterprise', coverage: '85%', status: 'active', lastUpdate: '2024-01-15', health: 'warning' },
+  { id: 'sc-4', name: 'Email Security', vendor: 'Proofpoint', coverage: '100%', status: 'active', lastUpdate: '2024-01-14', health: 'good' },
+  { id: 'sc-5', name: 'WAF', vendor: 'AWS WAF + CloudFront', coverage: '100%', status: 'active', lastUpdate: '2024-01-12', health: 'good' },
+  { id: 'sc-6', name: 'Backup Solution', vendor: 'Veeam B&R v12', coverage: '95%', status: 'active', lastUpdate: '2024-01-15', health: 'critical' },
+  { id: 'sc-7', name: 'PAM', vendor: 'CyberArk', coverage: '78%', status: 'degraded', lastUpdate: '2024-01-10', health: 'warning' },
+];
+
+const MOCK_COMPLIANCE = [
+  { id: 'comp-1', framework: 'PCI-DSS', requirement: 'Requirement 10 - Logging', description: 'Track all access to network resources and cardholder data', applicableSystems: ['DC-MAIN-01', 'SQL-DB-01', 'FS-FINANCE-01'], status: 'partial' },
+  { id: 'comp-2', framework: 'SOX', requirement: 'Section 404 - IT Controls', description: 'Internal controls over financial reporting systems', applicableSystems: ['SQL-DB-01', 'FS-FINANCE-01', 'EXCH-01'], status: 'compliant' },
+  { id: 'comp-3', framework: 'GDPR', requirement: 'Article 32 - Security', description: 'Appropriate technical measures for data protection', applicableSystems: ['All Systems'], status: 'partial' },
+  { id: 'comp-4', framework: 'NIST 800-53', requirement: 'IR-4 Incident Handling', description: 'Implement incident handling capability', applicableSystems: ['SIEM', 'All Servers'], status: 'compliant' },
+];
+
 /**
  * Infrastructure Validation Page
- *
- * Validate documented systems:
- * - Auto-validation toggle
- * - Manual validation per system
- * - Validation results table
- * - Discrepancy alerts
  */
 export default function InfrastructureValidationPage() {
   const navigate = useNavigate();
@@ -73,7 +131,7 @@ export default function InfrastructureValidationPage() {
   };
 
   const handleContinue = () => {
-    if (!showSummary && verifiedCount > 0) {
+    if (!showSummary) {
       setShowSummary(true);
       return;
     }
@@ -85,6 +143,10 @@ export default function InfrastructureValidationPage() {
   const failedCount = systems.filter((s) => s.overallStatus === 'failed').length;
   const pendingCount = systems.filter((s) => s.overallStatus === 'pending').length;
   const unknownCount = systems.filter((s) => s.overallStatus === 'unknown').length;
+
+  // Use mock data counts for summary (always show demo data)
+  const summarySystemsCount = Math.max(extractedEntities.systems.length, MOCK_SYSTEMS.length);
+  const summaryNetworksCount = Math.max(extractedEntities.networks.length, MOCK_NETWORKS.length);
 
   return (
     <PageContainer
@@ -133,11 +195,11 @@ export default function InfrastructureValidationPage() {
           onBack={handleBack}
           backLabel={showSummary ? 'Back to Validation' : 'Connectors'}
           onContinue={handleContinue}
-          continueLabel={showSummary ? 'Proceed to Triage' : (discrepancies.length > 0 ? 'View Summary' : 'View Summary')}
+          continueLabel={showSummary ? 'Proceed to Triage' : 'View Summary'}
         />
       }
     >
-      {/* INFRASTRUCTURE SUMMARY VIEW */}
+      {/* INFRASTRUCTURE SUMMARY VIEW with Demo Data */}
       {showSummary && (
         <div className="space-y-6">
           <Card className="bg-gradient-to-br from-forensic-50 to-white dark:from-forensic-900/20 dark:to-slate-800">
@@ -152,35 +214,45 @@ export default function InfrastructureValidationPage() {
             </div>
 
             {/* Summary Stats Row */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
               <div className="p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 text-center">
                 <Server className="w-5 h-5 mx-auto text-blue-500 mb-1" />
-                <p className="text-xl font-bold text-slate-900 dark:text-slate-100">{extractedEntities.systems.length}</p>
+                <p className="text-xl font-bold text-slate-900 dark:text-slate-100">{summarySystemsCount}</p>
                 <p className="text-xs text-slate-500">Systems</p>
               </div>
               <div className="p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 text-center">
                 <Network className="w-5 h-5 mx-auto text-green-500 mb-1" />
-                <p className="text-xl font-bold text-slate-900 dark:text-slate-100">{extractedEntities.networks.length}</p>
+                <p className="text-xl font-bold text-slate-900 dark:text-slate-100">{summaryNetworksCount}</p>
                 <p className="text-xs text-slate-500">Networks</p>
               </div>
               <div className="p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 text-center">
-                <Users className="w-5 h-5 mx-auto text-purple-500 mb-1" />
-                <p className="text-xl font-bold text-slate-900 dark:text-slate-100">~1,250</p>
-                <p className="text-xs text-slate-500">Employees</p>
+                <Cloud className="w-5 h-5 mx-auto text-cyan-500 mb-1" />
+                <p className="text-xl font-bold text-slate-900 dark:text-slate-100">{MOCK_CLOUD_SERVICES.length}</p>
+                <p className="text-xs text-slate-500">Cloud</p>
               </div>
               <div className="p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 text-center">
-                <Cloud className="w-5 h-5 mx-auto text-cyan-500 mb-1" />
-                <p className="text-xl font-bold text-slate-900 dark:text-slate-100">3</p>
-                <p className="text-xs text-slate-500">Cloud Services</p>
+                <Users className="w-5 h-5 mx-auto text-purple-500 mb-1" />
+                <p className="text-xl font-bold text-slate-900 dark:text-slate-100">1,250</p>
+                <p className="text-xs text-slate-500">Users</p>
               </div>
               <div className="p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 text-center">
                 <Database className="w-5 h-5 mx-auto text-orange-500 mb-1" />
-                <p className="text-xl font-bold text-slate-900 dark:text-slate-100">{extractedEntities.processes.length}</p>
-                <p className="text-xs text-slate-500">Processes</p>
+                <p className="text-xl font-bold text-slate-900 dark:text-slate-100">{MOCK_DATA_STORES.length}</p>
+                <p className="text-xs text-slate-500">Data Stores</p>
               </div>
               <div className="p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 text-center">
-                <Shield className="w-5 h-5 mx-auto text-red-500 mb-1" />
-                <p className="text-xl font-bold text-slate-900 dark:text-slate-100">{extractedEntities.compliance.length}</p>
+                <Shield className="w-5 h-5 mx-auto text-indigo-500 mb-1" />
+                <p className="text-xl font-bold text-slate-900 dark:text-slate-100">{MOCK_SECURITY_CONTROLS.length}</p>
+                <p className="text-xs text-slate-500">Security</p>
+              </div>
+              <div className="p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 text-center">
+                <Key className="w-5 h-5 mx-auto text-amber-500 mb-1" />
+                <p className="text-xl font-bold text-slate-900 dark:text-slate-100">{MOCK_EMPLOYEES.length}</p>
+                <p className="text-xs text-slate-500">Accounts</p>
+              </div>
+              <div className="p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 text-center">
+                <Lock className="w-5 h-5 mx-auto text-red-500 mb-1" />
+                <p className="text-xl font-bold text-slate-900 dark:text-slate-100">{MOCK_COMPLIANCE.length}</p>
                 <p className="text-xs text-slate-500">Compliance</p>
               </div>
             </div>
@@ -190,7 +262,7 @@ export default function InfrastructureValidationPage() {
           <SummaryDrilldown
             title="Systems & Servers"
             icon={<Server className="w-5 h-5 text-blue-500" />}
-            count={extractedEntities.systems.length}
+            count={MOCK_SYSTEMS.length}
             isExpanded={expandedSection === 'systems'}
             onToggle={() => setExpandedSection(expandedSection === 'systems' ? null : 'systems')}
           >
@@ -202,44 +274,64 @@ export default function InfrastructureValidationPage() {
                     <th className="pb-2">IP</th>
                     <th className="pb-2">Role</th>
                     <th className="pb-2">OS</th>
+                    <th className="pb-2">Services</th>
                     <th className="pb-2">Criticality</th>
-                    <th className="pb-2">Validation</th>
+                    <th className="pb-2">CPU</th>
+                    <th className="pb-2">Memory</th>
+                    <th className="pb-2">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                  {extractedEntities.systems.map((sys) => {
-                    const val = systems.find((s) => s.hostname === sys.hostname);
-                    return (
-                      <tr key={sys.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
-                        <td className="py-2 font-medium">{sys.hostname}</td>
-                        <td className="py-2 font-mono text-xs text-slate-500">{sys.ip || 'N/A'}</td>
-                        <td className="py-2 text-slate-600 dark:text-slate-400">{sys.role}</td>
-                        <td className="py-2 text-slate-500 text-xs">{sys.os || '-'}</td>
-                        <td className="py-2">
-                          <span className={cn(
-                            'px-2 py-0.5 rounded-full text-xs font-medium',
-                            sys.criticality === 'critical' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                            sys.criticality === 'high' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
-                            'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
-                          )}>{sys.criticality}</span>
-                        </td>
-                        <td className="py-2">
-                          {val ? (
-                            <span className={cn(
-                              'flex items-center gap-1 text-xs',
-                              val.overallStatus === 'verified' ? 'text-green-600' :
-                              val.overallStatus === 'failed' ? 'text-red-600' : 'text-yellow-600'
-                            )}>
-                              {val.overallStatus === 'verified' && <CheckCircle className="w-3 h-3" />}
-                              {val.overallStatus === 'failed' && <XCircle className="w-3 h-3" />}
-                              {val.overallStatus === 'pending' && <Clock className="w-3 h-3" />}
-                              {val.overallStatus}
-                            </span>
-                          ) : <span className="text-xs text-slate-400">-</span>}
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {MOCK_SYSTEMS.map((sys) => (
+                    <tr key={sys.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                      <td className="py-2 font-medium">{sys.hostname}</td>
+                      <td className="py-2 font-mono text-xs text-slate-500">{sys.ip}</td>
+                      <td className="py-2 text-slate-600 dark:text-slate-400 text-xs">{sys.role}</td>
+                      <td className="py-2 text-slate-500 text-xs">{sys.os}</td>
+                      <td className="py-2">
+                        <div className="flex flex-wrap gap-1">
+                          {sys.services.slice(0, 3).map((svc) => (
+                            <span key={svc} className="px-1.5 py-0.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-[10px] rounded">{svc}</span>
+                          ))}
+                          {sys.services.length > 3 && <span className="text-[10px] text-slate-400">+{sys.services.length - 3}</span>}
+                        </div>
+                      </td>
+                      <td className="py-2">
+                        <span className={cn(
+                          'px-2 py-0.5 rounded-full text-xs font-medium',
+                          sys.criticality === 'critical' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                          sys.criticality === 'high' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
+                          sys.criticality === 'medium' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
+                          'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
+                        )}>{sys.criticality}</span>
+                      </td>
+                      <td className="py-2">
+                        <div className="flex items-center gap-1">
+                          <div className="w-12 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                            <div className={cn('h-full rounded-full', sys.cpu > 80 ? 'bg-red-500' : sys.cpu > 50 ? 'bg-yellow-500' : 'bg-green-500')} style={{ width: `${sys.cpu}%` }} />
+                          </div>
+                          <span className="text-[10px] text-slate-400">{sys.cpu}%</span>
+                        </div>
+                      </td>
+                      <td className="py-2">
+                        <div className="flex items-center gap-1">
+                          <div className="w-12 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                            <div className={cn('h-full rounded-full', sys.memory > 80 ? 'bg-red-500' : sys.memory > 60 ? 'bg-yellow-500' : 'bg-green-500')} style={{ width: `${sys.memory}%` }} />
+                          </div>
+                          <span className="text-[10px] text-slate-400">{sys.memory}%</span>
+                        </div>
+                      </td>
+                      <td className="py-2">
+                        <span className={cn(
+                          'flex items-center gap-1 text-xs',
+                          sys.status === 'verified' ? 'text-green-600' : 'text-red-600'
+                        )}>
+                          {sys.status === 'verified' ? <CheckCircle className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                          {sys.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -248,107 +340,238 @@ export default function InfrastructureValidationPage() {
           <SummaryDrilldown
             title="Network Segments"
             icon={<Network className="w-5 h-5 text-green-500" />}
-            count={extractedEntities.networks.length}
+            count={MOCK_NETWORKS.length}
             isExpanded={expandedSection === 'networks'}
             onToggle={() => setExpandedSection(expandedSection === 'networks' ? null : 'networks')}
           >
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs text-slate-500 uppercase">
+                    <th className="pb-2">Name</th>
+                    <th className="pb-2">CIDR</th>
+                    <th className="pb-2">VLAN</th>
+                    <th className="pb-2">Gateway</th>
+                    <th className="pb-2">Devices</th>
+                    <th className="pb-2">DHCP</th>
+                    <th className="pb-2">Description</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                  {MOCK_NETWORKS.map((net) => (
+                    <tr key={net.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                      <td className="py-2 font-medium">{net.name}</td>
+                      <td className="py-2 font-mono text-xs text-slate-500">{net.cidr}</td>
+                      <td className="py-2"><span className="px-1.5 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs rounded">VLAN {net.vlan}</span></td>
+                      <td className="py-2 font-mono text-xs text-slate-500">{net.gateway}</td>
+                      <td className="py-2 text-sm font-semibold">{net.devices}</td>
+                      <td className="py-2">{net.dhcp ? <CheckCircle className="w-3 h-3 text-green-500" /> : <XCircle className="w-3 h-3 text-slate-300" />}</td>
+                      <td className="py-2 text-xs text-slate-400">{net.description}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </SummaryDrilldown>
+
+          <SummaryDrilldown
+            title="Cloud Services & Tenants"
+            icon={<Cloud className="w-5 h-5 text-cyan-500" />}
+            count={MOCK_CLOUD_SERVICES.length}
+            isExpanded={expandedSection === 'cloud'}
+            onToggle={() => setExpandedSection(expandedSection === 'cloud' ? null : 'cloud')}
+          >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {extractedEntities.networks.map((net) => (
-                <div key={net.id} className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Globe className="w-4 h-4 text-green-500" />
-                    <span className="font-medium text-sm">{net.name}</span>
-                    {net.vlan && <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-1.5 rounded">VLAN {net.vlan}</span>}
+              {MOCK_CLOUD_SERVICES.map((svc) => (
+                <div key={svc.id} className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <Cloud className="w-4 h-4 text-cyan-500" />
+                      <span className="font-medium text-sm">{svc.name}</span>
+                    </div>
+                    <span className={cn(
+                      'px-2 py-0.5 rounded text-xs font-medium',
+                      svc.risk === 'critical' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                      svc.risk === 'high' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
+                      'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                    )}>{svc.risk}</span>
                   </div>
-                  <p className="text-xs font-mono text-slate-500">{net.cidr}</p>
-                  <p className="text-xs text-slate-400 mt-1">{net.description}</p>
+                  <p className="text-xs text-slate-500 mb-2">Region: {svc.region}</p>
+                  <div className="flex flex-wrap gap-1">
+                    {svc.services.map((s) => (
+                      <span key={s} className="px-1.5 py-0.5 bg-cyan-50 dark:bg-cyan-900/20 text-cyan-600 dark:text-cyan-400 text-[10px] rounded">{s}</span>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>
           </SummaryDrilldown>
 
           <SummaryDrilldown
-            title="Business Processes"
+            title="Data Stores & Repositories"
             icon={<Database className="w-5 h-5 text-orange-500" />}
-            count={extractedEntities.processes.length}
-            isExpanded={expandedSection === 'processes'}
-            onToggle={() => setExpandedSection(expandedSection === 'processes' ? null : 'processes')}
+            count={MOCK_DATA_STORES.length}
+            isExpanded={expandedSection === 'datastores'}
+            onToggle={() => setExpandedSection(expandedSection === 'datastores' ? null : 'datastores')}
           >
-            {extractedEntities.processes.map((proc) => (
-              <div key={proc.id} className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg mb-2">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-medium text-sm">{proc.name}</span>
-                  <span className={cn(
-                    'px-2 py-0.5 rounded-full text-xs font-medium',
-                    proc.criticality === 'critical' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-orange-100 text-orange-700'
-                  )}>{proc.criticality}</span>
-                </div>
-                <p className="text-xs text-slate-500">{proc.description}</p>
-                <div className="flex gap-4 mt-2 text-xs text-slate-400">
-                  <span>RTO: {proc.rto}h</span>
-                  <span>RPO: {proc.rpo}h</span>
-                  <span>Depends: {proc.dependentSystems.join(', ')}</span>
-                </div>
-              </div>
-            ))}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs text-slate-500 uppercase">
+                    <th className="pb-2">Name</th>
+                    <th className="pb-2">Type</th>
+                    <th className="pb-2">Size</th>
+                    <th className="pb-2">Classification</th>
+                    <th className="pb-2">Encryption</th>
+                    <th className="pb-2">Backup</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                  {MOCK_DATA_STORES.map((ds) => (
+                    <tr key={ds.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                      <td className="py-2 font-medium text-xs">{ds.name}</td>
+                      <td className="py-2 text-xs text-slate-500">{ds.type}</td>
+                      <td className="py-2 text-xs font-semibold">{ds.size}</td>
+                      <td className="py-2">
+                        <span className={cn(
+                          'px-2 py-0.5 rounded text-[10px] font-medium',
+                          ds.classification === 'Highly Confidential' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                          ds.classification === 'Confidential' || ds.classification === 'Critical' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
+                          'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                        )}>{ds.classification}</span>
+                      </td>
+                      <td className="py-2 text-xs">{ds.encryption === 'No' ? <span className="text-red-500 font-medium">None</span> : <span className="text-green-600">{ds.encryption}</span>}</td>
+                      <td className="py-2 text-xs text-slate-500">{ds.backup}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </SummaryDrilldown>
 
           <SummaryDrilldown
-            title="Key Personnel & Employees"
+            title="Key Personnel & Privileged Accounts"
             icon={<Users className="w-5 h-5 text-purple-500" />}
-            count={8}
+            count={MOCK_EMPLOYEES.length}
             isExpanded={expandedSection === 'employees'}
             onToggle={() => setExpandedSection(expandedSection === 'employees' ? null : 'employees')}
           >
-            <div className="space-y-2">
-              {[
-                { name: 'John Smith', role: 'IT Director', dept: 'IT', access: 'Domain Admin', risk: 'high' },
-                { name: 'Sarah Johnson', role: 'CISO', dept: 'Security', access: 'Security Admin', risk: 'high' },
-                { name: 'Mike Chen', role: 'Sr. Network Engineer', dept: 'IT', access: 'Network Admin', risk: 'medium' },
-                { name: 'Lisa Williams', role: 'Finance Manager', dept: 'Finance', access: 'Finance Share', risk: 'medium' },
-                { name: 'svc-backup', role: 'Service Account', dept: 'System', access: 'Backup Operator', risk: 'high' },
-                { name: 'svc-sql', role: 'Service Account', dept: 'System', access: 'SQL Server Agent', risk: 'high' },
-                { name: 'admin.jsmith', role: 'Privileged Account', dept: 'IT', access: 'Domain Admin', risk: 'critical' },
-                { name: 'helpdesk-svc', role: 'Service Account', dept: 'IT', access: 'Password Reset', risk: 'medium' },
-              ].map((person, idx) => (
-                <div key={idx} className="flex items-center gap-3 p-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg text-sm">
-                  <div className={cn(
-                    'w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium',
-                    person.role.includes('Service') || person.role.includes('Privileged')
-                      ? 'bg-orange-100 text-orange-600 dark:bg-orange-900/30'
-                      : 'bg-blue-100 text-blue-600 dark:bg-blue-900/30'
-                  )}>
-                    {person.name.slice(0, 2).toUpperCase()}
-                  </div>
-                  <div className="flex-1">
-                    <span className="font-medium">{person.name}</span>
-                    <span className="text-slate-400 ml-2 text-xs">{person.role}</span>
-                  </div>
-                  <span className="text-xs text-slate-500">{person.dept}</span>
-                  <span className="text-xs text-slate-400">{person.access}</span>
-                  <span className={cn(
-                    'px-1.5 py-0.5 rounded text-xs font-medium',
-                    person.risk === 'critical' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                    person.risk === 'high' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
-                    'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
-                  )}>{person.risk}</span>
-                </div>
-              ))}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs text-slate-500 uppercase">
+                    <th className="pb-2">Account</th>
+                    <th className="pb-2">Role</th>
+                    <th className="pb-2">Dept</th>
+                    <th className="pb-2">Access Level</th>
+                    <th className="pb-2">Last Logon</th>
+                    <th className="pb-2">MFA</th>
+                    <th className="pb-2">Risk</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                  {MOCK_EMPLOYEES.map((person, idx) => (
+                    <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                      <td className="py-2">
+                        <div className="flex items-center gap-2">
+                          <div className={cn(
+                            'w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-medium',
+                            person.role.includes('Service') || person.role.includes('Privileged')
+                              ? 'bg-orange-100 text-orange-600 dark:bg-orange-900/30'
+                              : 'bg-blue-100 text-blue-600 dark:bg-blue-900/30'
+                          )}>
+                            {person.name.slice(0, 2).toUpperCase()}
+                          </div>
+                          <span className="font-medium text-xs">{person.name}</span>
+                        </div>
+                      </td>
+                      <td className="py-2 text-xs text-slate-500">{person.role}</td>
+                      <td className="py-2 text-xs text-slate-500">{person.dept}</td>
+                      <td className="py-2 text-xs">{person.access}</td>
+                      <td className="py-2 text-xs font-mono text-slate-400">{person.lastLogon}</td>
+                      <td className="py-2">{person.mfa ? <CheckCircle className="w-3 h-3 text-green-500" /> : <AlertTriangle className="w-3 h-3 text-yellow-500" />}</td>
+                      <td className="py-2">
+                        <span className={cn(
+                          'px-1.5 py-0.5 rounded text-xs font-medium',
+                          person.risk === 'critical' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                          person.risk === 'high' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
+                          'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                        )}>{person.risk}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </SummaryDrilldown>
 
           <SummaryDrilldown
-            title="Compliance & Data Classification"
-            icon={<Shield className="w-5 h-5 text-red-500" />}
-            count={extractedEntities.compliance.length}
+            title="Security Controls & Tools"
+            icon={<Shield className="w-5 h-5 text-indigo-500" />}
+            count={MOCK_SECURITY_CONTROLS.length}
+            isExpanded={expandedSection === 'security'}
+            onToggle={() => setExpandedSection(expandedSection === 'security' ? null : 'security')}
+          >
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs text-slate-500 uppercase">
+                    <th className="pb-2">Control</th>
+                    <th className="pb-2">Vendor / Product</th>
+                    <th className="pb-2">Coverage</th>
+                    <th className="pb-2">Status</th>
+                    <th className="pb-2">Last Update</th>
+                    <th className="pb-2">Health</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                  {MOCK_SECURITY_CONTROLS.map((sc) => (
+                    <tr key={sc.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                      <td className="py-2 font-medium text-xs">{sc.name}</td>
+                      <td className="py-2 text-xs text-slate-500">{sc.vendor}</td>
+                      <td className="py-2">
+                        <div className="flex items-center gap-1">
+                          <div className="w-16 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                            <div className={cn('h-full rounded-full', parseInt(sc.coverage) > 90 ? 'bg-green-500' : parseInt(sc.coverage) > 80 ? 'bg-yellow-500' : 'bg-orange-500')} style={{ width: sc.coverage }} />
+                          </div>
+                          <span className="text-[10px] text-slate-400">{sc.coverage}</span>
+                        </div>
+                      </td>
+                      <td className="py-2"><span className={cn('px-1.5 py-0.5 rounded text-[10px] font-medium', sc.status === 'active' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400')}>{sc.status}</span></td>
+                      <td className="py-2 text-xs font-mono text-slate-400">{sc.lastUpdate}</td>
+                      <td className="py-2">
+                        <span className={cn(
+                          'flex items-center gap-1 text-xs',
+                          sc.health === 'good' ? 'text-green-600' : sc.health === 'warning' ? 'text-yellow-600' : 'text-red-600'
+                        )}>
+                          <span className={cn('w-2 h-2 rounded-full', sc.health === 'good' ? 'bg-green-500' : sc.health === 'warning' ? 'bg-yellow-500' : 'bg-red-500')} />
+                          {sc.health}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </SummaryDrilldown>
+
+          <SummaryDrilldown
+            title="Compliance & Regulatory"
+            icon={<Lock className="w-5 h-5 text-red-500" />}
+            count={MOCK_COMPLIANCE.length}
             isExpanded={expandedSection === 'compliance'}
             onToggle={() => setExpandedSection(expandedSection === 'compliance' ? null : 'compliance')}
           >
-            {extractedEntities.compliance.map((comp) => (
+            {MOCK_COMPLIANCE.map((comp) => (
               <div key={comp.id} className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg mb-2">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="px-2 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-xs font-medium rounded">{comp.framework}</span>
                   <span className="font-medium text-sm">{comp.requirement}</span>
+                  <span className={cn(
+                    'ml-auto px-2 py-0.5 rounded text-xs font-medium',
+                    comp.status === 'compliant' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                    'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                  )}>{comp.status}</span>
                 </div>
                 <p className="text-xs text-slate-500">{comp.description}</p>
                 <p className="text-xs text-slate-400 mt-1">Applies to: {comp.applicableSystems.join(', ')}</p>
@@ -363,7 +586,7 @@ export default function InfrastructureValidationPage() {
               <div className="flex-1">
                 <h3 className="font-semibold text-green-800 dark:text-green-200">Ready for Triage</h3>
                 <p className="text-sm text-green-600 dark:text-green-400">
-                  {verifiedCount} of {systems.length} systems verified. All key resources have been documented and validated. Click "Proceed to Triage" to begin forensic analysis.
+                  {MOCK_SYSTEMS.length} systems, {MOCK_NETWORKS.length} networks, {MOCK_CLOUD_SERVICES.length} cloud services, and {MOCK_EMPLOYEES.length} privileged accounts documented. All key resources have been validated. Click "Proceed to Triage" to begin forensic analysis.
                 </p>
               </div>
               <ArrowRight className="w-5 h-5 text-green-500" />

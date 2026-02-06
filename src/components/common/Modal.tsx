@@ -61,13 +61,20 @@ export function Modal({
             </Dialog.Overlay>
             <Dialog.Content asChild>
               <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ duration: 0.2, ease: 'easeOut' }}
                 className={cn(
-                  'fixed z-50 w-full',
-                  'left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2',
+                  'fixed z-50 inset-0',
+                  'flex items-center justify-center',
+                  'pointer-events-none',
+                )}
+                onClick={(e) => e.stopPropagation()}
+              >
+              <div
+                className={cn(
+                  'w-full pointer-events-auto',
                   'bg-white dark:bg-slate-800',
                   'rounded-xl shadow-xl',
                   'border border-slate-200 dark:border-slate-700',
@@ -75,7 +82,6 @@ export function Modal({
                   'max-h-[85vh] overflow-hidden flex flex-col',
                   sizeStyles[size]
                 )}
-                onClick={(e) => e.stopPropagation()}
               >
                 {/* Header */}
                 {(title || showCloseButton) && (
@@ -132,6 +138,7 @@ export function Modal({
                     {footer}
                   </div>
                 )}
+              </div>
               </motion.div>
             </Dialog.Content>
           </Dialog.Portal>

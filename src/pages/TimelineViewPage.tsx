@@ -14,24 +14,319 @@ import {
   Cloud,
   Shield,
   Activity,
-  UserX,
   Server,
-  ArrowRight,
   Lock,
   Unlock,
   Network,
-  Key,
   HardDrive,
   Mail,
   RotateCw,
   Skull,
   ChevronDown,
   ChevronRight,
+  Info,
+  Target,
+  Crosshair,
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { formatDateTime, formatTimestamp } from '@/utils/formatters';
 
-// Mock timeline events
+// ===================== ATTACK TIMELINE DATA =====================
+interface AttackTimelineEvent {
+  id: string;
+  date: string;       // e.g. '2024-01-15'
+  time: string;        // e.g. '02:15'
+  timestamp: Date;
+  phase: string;
+  phaseIndex: number;
+  title: string;
+  description: string;
+  riskScore: number;   // 0-100
+  severity: 'critical' | 'high' | 'medium' | 'low';
+  icon: React.ReactNode;
+  color: string;
+  iocs: { type: string; value: string; }[];
+  ttps: { id: string; name: string; tactic: string; }[];
+  affectedAssets: string[];
+  details: string;
+}
+
+const ATTACK_TIMELINE: AttackTimelineEvent[] = [
+  {
+    id: 'atk-1',
+    date: '2024-01-15',
+    time: '02:15',
+    timestamp: new Date('2024-01-15T02:15:00'),
+    phase: 'Initial Access',
+    phaseIndex: 0,
+    title: 'Phishing Email Delivered',
+    description: 'Spear-phishing email with malicious attachment delivered to jsmith@company.com',
+    riskScore: 85,
+    severity: 'high',
+    icon: <Mail className="w-4 h-4" />,
+    color: 'bg-red-500',
+    iocs: [
+      { type: 'Email', value: 'invoice-update@mail-service.xyz' },
+      { type: 'Hash (SHA256)', value: 'a1b2c3d4e5f6...9876543210ab' },
+      { type: 'Domain', value: 'mail-service.xyz' },
+      { type: 'IP', value: '198.51.100.23' },
+    ],
+    ttps: [
+      { id: 'T1566.001', name: 'Spear-phishing Attachment', tactic: 'Initial Access' },
+      { id: 'T1204.002', name: 'User Execution: Malicious File', tactic: 'Execution' },
+    ],
+    affectedAssets: ['WS-FIN-042', 'jsmith@company.com'],
+    details: 'Email impersonated a vendor invoice. Contained a macro-enabled Excel document (.xlsm) that executed PowerShell on open. The macro was obfuscated using string concatenation and base64 encoding. Email passed SPF/DKIM checks as the sending domain was newly registered.',
+  },
+  {
+    id: 'atk-2',
+    date: '2024-01-15',
+    time: '02:18',
+    timestamp: new Date('2024-01-15T02:18:00'),
+    phase: 'Execution',
+    phaseIndex: 1,
+    title: 'Macro Execution → PowerShell Stager',
+    description: 'Malicious macro spawned PowerShell process downloading second-stage payload',
+    riskScore: 90,
+    severity: 'critical',
+    icon: <Activity className="w-4 h-4" />,
+    color: 'bg-red-600',
+    iocs: [
+      { type: 'Process', value: 'powershell.exe -enc <base64>' },
+      { type: 'URL', value: 'https://cdn-update.xyz/payload.ps1' },
+      { type: 'IP', value: '185.220.101.42' },
+      { type: 'Hash', value: 'payload.ps1: e7f8a9b0c1d2...' },
+    ],
+    ttps: [
+      { id: 'T1059.001', name: 'PowerShell', tactic: 'Execution' },
+      { id: 'T1105', name: 'Ingress Tool Transfer', tactic: 'Command and Control' },
+    ],
+    affectedAssets: ['WS-FIN-042'],
+    details: 'Excel macro used WMI to spawn powershell.exe with encoded command. The stager connected to cdn-update.xyz over HTTPS (port 443) to download the main payload. Cobalt Strike beacon was loaded in memory via reflective DLL injection. Process tree: EXCEL.EXE → cmd.exe → powershell.exe.',
+  },
+  {
+    id: 'atk-3',
+    date: '2024-01-15',
+    time: '02:22',
+    timestamp: new Date('2024-01-15T02:22:00'),
+    phase: 'Command & Control',
+    phaseIndex: 2,
+    title: 'C2 Channel Established',
+    description: 'Cobalt Strike beacon established HTTPS C2 channel to attacker infrastructure',
+    riskScore: 92,
+    severity: 'critical',
+    icon: <Network className="w-4 h-4" />,
+    color: 'bg-purple-600',
+    iocs: [
+      { type: 'C2 Domain', value: 'update-service.xyz' },
+      { type: 'C2 IP', value: '185.220.101.42' },
+      { type: 'C2 Port', value: '443 (HTTPS)' },
+      { type: 'Beacon Config', value: 'Sleep: 60s, Jitter: 25%' },
+      { type: 'User-Agent', value: 'Mozilla/5.0 (compatible)' },
+    ],
+    ttps: [
+      { id: 'T1071.001', name: 'Web Protocols (HTTPS)', tactic: 'Command and Control' },
+      { id: 'T1573.002', name: 'Encrypted Channel: Asymmetric', tactic: 'Command and Control' },
+    ],
+    affectedAssets: ['WS-FIN-042'],
+    details: 'Cobalt Strike beacon configured with HTTPS C2 profile mimicking legitimate web traffic. Beacon sleep interval: 60 seconds with 25% jitter. JA3 fingerprint matches known Cobalt Strike malleable profile. DNS over HTTPS used for domain resolution. Traffic blended with legitimate web browsing.',
+  },
+  {
+    id: 'atk-4',
+    date: '2024-01-15',
+    time: '02:25',
+    timestamp: new Date('2024-01-15T02:25:00'),
+    phase: 'Persistence',
+    phaseIndex: 3,
+    title: 'Scheduled Task Persistence',
+    description: 'Created "WindowsUpdate" scheduled task for persistence across reboots',
+    riskScore: 75,
+    severity: 'high',
+    icon: <RotateCw className="w-4 h-4" />,
+    color: 'bg-orange-500',
+    iocs: [
+      { type: 'Task Name', value: 'WindowsUpdate' },
+      { type: 'Executable', value: 'C:\\Users\\Public\\update.exe' },
+      { type: 'Trigger', value: 'At system startup' },
+      { type: 'Hash', value: 'update.exe: c3d4e5f6a7b8...' },
+    ],
+    ttps: [
+      { id: 'T1053.005', name: 'Scheduled Task/Job', tactic: 'Persistence' },
+      { id: 'T1036.005', name: 'Masquerading: Match Name', tactic: 'Defense Evasion' },
+    ],
+    affectedAssets: ['WS-FIN-042'],
+    details: 'Scheduled task "WindowsUpdate" created via schtasks.exe with SYSTEM privileges. Executable placed in C:\\Users\\Public\\ to avoid UAC. Task configured to run at system startup with highest privileges. File was timestomped to match legitimate system files. The binary is a packed Cobalt Strike loader.',
+  },
+  {
+    id: 'atk-5',
+    date: '2024-01-15',
+    time: '02:28',
+    timestamp: new Date('2024-01-15T02:28:00'),
+    phase: 'Privilege Escalation',
+    phaseIndex: 4,
+    title: 'Credential Theft via Mimikatz',
+    description: 'Mimikatz DCSync attack harvested Domain Admin credentials',
+    riskScore: 98,
+    severity: 'critical',
+    icon: <Unlock className="w-4 h-4" />,
+    color: 'bg-orange-600',
+    iocs: [
+      { type: 'Tool', value: 'Mimikatz 2.2.0' },
+      { type: 'Technique', value: 'DCSync (lsadump::dcsync)' },
+      { type: 'Account', value: 'admin.jsmith (Domain Admin)' },
+      { type: 'Account', value: 'svc-backup (Backup Operator)' },
+      { type: 'Hash Type', value: 'NTLM, Kerberos AES256' },
+    ],
+    ttps: [
+      { id: 'T1003.006', name: 'DCSync', tactic: 'Credential Access' },
+      { id: 'T1078.002', name: 'Domain Accounts', tactic: 'Privilege Escalation' },
+    ],
+    affectedAssets: ['WS-FIN-042', 'DC-MAIN-01', 'admin.jsmith', 'svc-backup'],
+    details: 'Attacker used in-memory Mimikatz to perform DCSync attack against DC-MAIN-01. Replicated password hashes for all domain admin accounts. The DCSync required replication permissions - attacker exploited the initial user\'s existing DACL permissions. NTLM hashes and Kerberos AES256 keys were extracted for admin.jsmith and svc-backup accounts.',
+  },
+  {
+    id: 'atk-6',
+    date: '2024-01-15',
+    time: '02:30',
+    timestamp: new Date('2024-01-15T02:30:00'),
+    phase: 'Lateral Movement',
+    phaseIndex: 5,
+    title: 'PsExec Lateral Movement',
+    description: 'Used PsExec with admin credentials to move to DC-MAIN-01 and FS-FINANCE-01',
+    riskScore: 95,
+    severity: 'critical',
+    icon: <Network className="w-4 h-4" />,
+    color: 'bg-yellow-500',
+    iocs: [
+      { type: 'Tool', value: 'PsExec.exe (SysInternals)' },
+      { type: 'Source', value: 'WS-FIN-042 (10.0.10.42)' },
+      { type: 'Target 1', value: 'DC-MAIN-01 (10.0.1.10)' },
+      { type: 'Target 2', value: 'FS-FINANCE-01 (10.0.2.20)' },
+      { type: 'Port', value: 'TCP 445 (SMB)' },
+    ],
+    ttps: [
+      { id: 'T1570', name: 'Lateral Tool Transfer', tactic: 'Lateral Movement' },
+      { id: 'T1021.002', name: 'SMB/Windows Admin Shares', tactic: 'Lateral Movement' },
+      { id: 'T1047', name: 'WMI Execution', tactic: 'Execution' },
+    ],
+    affectedAssets: ['WS-FIN-042', 'DC-MAIN-01', 'FS-FINANCE-01'],
+    details: 'PsExec.exe used admin.jsmith credentials to create remote services on DC-MAIN-01 and FS-FINANCE-01 via SMB (port 445). New PSEXESVC service installed on both targets. WMI was also used as backup execution method. Lateral movement completed in under 90 seconds across both targets.',
+  },
+  {
+    id: 'atk-7',
+    date: '2024-01-15',
+    time: '02:33',
+    timestamp: new Date('2024-01-15T02:33:00'),
+    phase: 'Discovery',
+    phaseIndex: 6,
+    title: 'Internal Reconnaissance',
+    description: 'Network scanning and AD enumeration from compromised domain controller',
+    riskScore: 70,
+    severity: 'high',
+    icon: <Crosshair className="w-4 h-4" />,
+    color: 'bg-yellow-600',
+    iocs: [
+      { type: 'Tool', value: 'ADFind.exe, SharpHound' },
+      { type: 'Queries', value: 'Domain Trust, GPO, OU mapping' },
+      { type: 'Output', value: 'C:\\Windows\\Temp\\ad_enum.json' },
+    ],
+    ttps: [
+      { id: 'T1018', name: 'Remote System Discovery', tactic: 'Discovery' },
+      { id: 'T1087.002', name: 'Domain Account Discovery', tactic: 'Discovery' },
+      { id: 'T1482', name: 'Domain Trust Discovery', tactic: 'Discovery' },
+    ],
+    affectedAssets: ['DC-MAIN-01'],
+    details: 'From DC-MAIN-01, attacker ran ADFind.exe and SharpHound (BloodHound collector) to enumerate the entire Active Directory. Mapped domain trusts, Group Policy Objects, OUs, and high-value targets. Output saved to C:\\Windows\\Temp\\ad_enum.json. This provided the attacker with a complete map of the environment.',
+  },
+  {
+    id: 'atk-8',
+    date: '2024-01-15',
+    time: '02:35',
+    timestamp: new Date('2024-01-15T02:35:00'),
+    phase: 'Collection',
+    phaseIndex: 7,
+    title: 'Finance Data Harvested',
+    description: 'Bulk file download of 1,247 files from Finance share and SharePoint',
+    riskScore: 88,
+    severity: 'critical',
+    icon: <HardDrive className="w-4 h-4" />,
+    color: 'bg-purple-500',
+    iocs: [
+      { type: 'File Count', value: '1,247 files' },
+      { type: 'Total Size', value: '~4.2 GB' },
+      { type: 'Source 1', value: '\\\\FS-FINANCE-01\\Finance' },
+      { type: 'Source 2', value: 'SharePoint Online - Finance' },
+      { type: 'Staging Dir', value: 'C:\\Windows\\Temp\\exfil\\' },
+    ],
+    ttps: [
+      { id: 'T1005', name: 'Data from Local System', tactic: 'Collection' },
+      { id: 'T1039', name: 'Data from Network Shared Drive', tactic: 'Collection' },
+      { id: 'T1074.001', name: 'Local Data Staging', tactic: 'Collection' },
+    ],
+    affectedAssets: ['FS-FINANCE-01', 'SharePoint Online', 'jsmith@company.com'],
+    details: 'Files collected from Finance share (\\\\FS-FINANCE-01\\Finance) and SharePoint Online using jsmith\'s credentials. Includes financial reports, customer PII, contracts, and internal strategy docs. Files staged in C:\\Windows\\Temp\\exfil\\ and compressed into split RAR archives for exfiltration. Total data: 1,247 files, approximately 4.2 GB.',
+  },
+  {
+    id: 'atk-9',
+    date: '2024-01-15',
+    time: '02:37',
+    timestamp: new Date('2024-01-15T02:37:00'),
+    phase: 'Exfiltration',
+    phaseIndex: 8,
+    title: 'Data Exfiltrated via C2',
+    description: 'Compressed data exfiltrated through Cobalt Strike C2 channel',
+    riskScore: 93,
+    severity: 'critical',
+    icon: <Cloud className="w-4 h-4" />,
+    color: 'bg-purple-600',
+    iocs: [
+      { type: 'Method', value: 'HTTPS via C2 channel' },
+      { type: 'Destination', value: '185.220.101.42:443' },
+      { type: 'Protocol', value: 'Cobalt Strike HTTP malleable' },
+      { type: 'Volume', value: '~1.8 GB (compressed)' },
+      { type: 'Duration', value: '~15 minutes' },
+    ],
+    ttps: [
+      { id: 'T1041', name: 'Exfiltration Over C2 Channel', tactic: 'Exfiltration' },
+      { id: 'T1560.001', name: 'Archive via Utility (RAR)', tactic: 'Collection' },
+    ],
+    affectedAssets: ['FS-FINANCE-01', 'WS-FIN-042'],
+    details: 'Data exfiltrated through the existing Cobalt Strike HTTPS C2 channel to 185.220.101.42. Split RAR archives transferred in chunks to blend with normal HTTPS traffic. Total exfiltrated volume: ~1.8 GB compressed (4.2 GB uncompressed). Transfer took approximately 15 minutes. DNS beaconing used as backup exfiltration channel.',
+  },
+  {
+    id: 'atk-10',
+    date: '2024-01-15',
+    time: '02:40',
+    timestamp: new Date('2024-01-15T02:40:00'),
+    phase: 'Impact',
+    phaseIndex: 9,
+    title: 'Ransomware Deployment',
+    description: 'File encryption initiated across domain via Group Policy Object',
+    riskScore: 100,
+    severity: 'critical',
+    icon: <Lock className="w-4 h-4" />,
+    color: 'bg-red-700',
+    iocs: [
+      { type: 'Ransomware', value: 'BlackCat/ALPHV variant' },
+      { type: 'Extension', value: '.encrypted' },
+      { type: 'Ransom Note', value: 'RECOVER-FILES.txt' },
+      { type: 'GPO Name', value: 'Windows Update Policy' },
+      { type: 'Bitcoin Address', value: 'bc1q...xyz' },
+    ],
+    ttps: [
+      { id: 'T1486', name: 'Data Encrypted for Impact', tactic: 'Impact' },
+      { id: 'T1484.001', name: 'Domain Policy Modification: GPO', tactic: 'Defense Evasion' },
+      { id: 'T1490', name: 'Inhibit System Recovery', tactic: 'Impact' },
+    ],
+    affectedAssets: ['DC-MAIN-01', 'FS-FINANCE-01', 'SQL-DB-01', 'WEB-APP-01', 'EXCH-01', 'BKP-SERVER-01'],
+    details: 'Ransomware deployed via malicious GPO "Windows Update Policy" pushed from DC-MAIN-01. BlackCat/ALPHV variant with .encrypted extension. Ransom note (RECOVER-FILES.txt) dropped in every directory. Volume shadow copies deleted (vssadmin delete shadows /all). Backup server (BKP-SERVER-01) specifically targeted first. Recovery inhibited by disabling Windows Recovery Environment.',
+  },
+];
+
+// Time slots for horizontal axis (every 5 minutes from 02:10 to 02:45)
+const TIME_SLOTS = ['02:10', '02:15', '02:20', '02:25', '02:30', '02:35', '02:40', '02:45'];
+
+// Mock timeline events for the lower section
 const MOCK_EVENTS = [
   {
     id: '1',
@@ -92,18 +387,13 @@ const MOCK_EVENTS = [
 
 /**
  * Timeline View Page
- *
- * Interactive timeline visualization:
- * - Horizontal timeline with events
- * - Event markers by severity
- * - Drill-down to raw logs
- * - Correlation lines
  */
 export default function TimelineViewPage() {
   const navigate = useNavigate();
   const { goToNextStep, goToPreviousStep } = useSessionStore();
 
   const [selectedEvent, setSelectedEvent] = useState<typeof MOCK_EVENTS[0] | null>(null);
+  const [selectedAttackEvent, setSelectedAttackEvent] = useState<AttackTimelineEvent | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [zoomLevel, setZoomLevel] = useState(1);
   const [showAttackFlow, setShowAttackFlow] = useState(true);
@@ -140,6 +430,22 @@ export default function TimelineViewPage() {
       info: 'bg-blue-500',
     };
     return colors[severity] || colors.info;
+  };
+
+  const getRiskScoreColor = (score: number) => {
+    if (score >= 90) return { bg: 'bg-red-500', text: 'text-red-700 dark:text-red-400', ring: 'ring-red-500' };
+    if (score >= 75) return { bg: 'bg-orange-500', text: 'text-orange-700 dark:text-orange-400', ring: 'ring-orange-500' };
+    if (score >= 50) return { bg: 'bg-yellow-500', text: 'text-yellow-700 dark:text-yellow-400', ring: 'ring-yellow-500' };
+    return { bg: 'bg-green-500', text: 'text-green-700 dark:text-green-400', ring: 'ring-green-500' };
+  };
+
+  // Calculate position on horizontal axis based on time
+  const getTimePosition = (time: string) => {
+    const [hours, minutes] = time.split(':').map(Number);
+    const totalMinutes = hours * 60 + minutes;
+    const startMinutes = 2 * 60 + 10; // 02:10
+    const endMinutes = 2 * 60 + 45;   // 02:45
+    return ((totalMinutes - startMinutes) / (endMinutes - startMinutes)) * 100;
   };
 
   return (
@@ -205,7 +511,7 @@ export default function TimelineViewPage() {
         </Tooltip>
       </div>
 
-      {/* Attack Flow Visualization */}
+      {/* Attack Flow Timeline — Multi-Dimensional Graph */}
       <Card className="mb-6">
         <button
           onClick={() => setShowAttackFlow(!showAttackFlow)}
@@ -213,100 +519,219 @@ export default function TimelineViewPage() {
         >
           <div className="flex items-center gap-2">
             <Skull className="w-5 h-5 text-red-500" />
-            <span className="font-semibold text-slate-900 dark:text-slate-100">Attack Flow Visualization</span>
-            <span className="text-xs bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-2 py-0.5 rounded-full">Live</span>
+            <span className="font-semibold text-slate-900 dark:text-slate-100">Attack Flow Timeline</span>
+            <span className="text-xs bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-2 py-0.5 rounded-full">Multi-Dimensional</span>
           </div>
           {showAttackFlow ? <ChevronDown className="w-5 h-5 text-slate-400" /> : <ChevronRight className="w-5 h-5 text-slate-400" />}
         </button>
 
         {showAttackFlow && (
-          <div className="mt-4 space-y-6">
-            {/* Attacker & Compromised Users Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* Attacker Profile */}
-              <div className="p-4 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/50 rounded-lg">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 rounded-full bg-red-500 flex items-center justify-center">
-                    <Skull className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-red-800 dark:text-red-300 text-sm">Threat Actor</h4>
-                    <p className="text-xs text-red-600 dark:text-red-400">External / Unknown Attribution</p>
-                  </div>
-                </div>
-                <div className="space-y-1 text-xs">
-                  <div className="flex justify-between"><span className="text-red-600 dark:text-red-400">Origin IP:</span><span className="font-mono text-red-800 dark:text-red-300">185.220.101.42</span></div>
-                  <div className="flex justify-between"><span className="text-red-600 dark:text-red-400">C2 Server:</span><span className="font-mono text-red-800 dark:text-red-300">update-service.xyz:443</span></div>
-                  <div className="flex justify-between"><span className="text-red-600 dark:text-red-400">Initial Vector:</span><span className="text-red-800 dark:text-red-300">Phishing Email</span></div>
-                  <div className="flex justify-between"><span className="text-red-600 dark:text-red-400">Tools Used:</span><span className="text-red-800 dark:text-red-300">PsExec, Mimikatz, Cobalt Strike</span></div>
-                </div>
+          <div className="mt-4 space-y-4">
+            {/* Graph Legend / Summary */}
+            <div className="flex flex-wrap gap-4 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg text-xs">
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-slate-500">AXIS:</span>
+                <span className="text-slate-400">Vertical = Date/Phase</span>
+                <span className="text-slate-300">|</span>
+                <span className="text-slate-400">Horizontal = Time</span>
               </div>
-
-              {/* Compromised Users */}
-              <div className="p-4 bg-orange-50 dark:bg-orange-900/10 border border-orange-200 dark:border-orange-900/50 rounded-lg">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center">
-                    <UserX className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-orange-800 dark:text-orange-300 text-sm">Compromised Users</h4>
-                    <p className="text-xs text-orange-600 dark:text-orange-400">3 accounts confirmed compromised</p>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  {[
-                    { user: 'jsmith@company.com', type: 'Phished', access: 'Domain User + VPN', icon: <Mail className="w-3 h-3" /> },
-                    { user: 'admin.jsmith', type: 'Credential Theft', access: 'Domain Admin', icon: <Key className="w-3 h-3" /> },
-                    { user: 'svc-backup', type: 'Token Impersonation', access: 'Backup Operator', icon: <Server className="w-3 h-3" /> },
-                  ].map((u, idx) => (
-                    <div key={idx} className="flex items-center gap-2 text-xs p-2 bg-white dark:bg-slate-800 rounded">
-                      <span className="text-orange-500">{u.icon}</span>
-                      <span className="font-mono font-medium text-slate-700 dark:text-slate-300 flex-1">{u.user}</span>
-                      <span className="px-1.5 py-0.5 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded text-[10px]">{u.type}</span>
-                      <span className="text-slate-400">{u.access}</span>
-                    </div>
-                  ))}
-                </div>
+              <div className="flex items-center gap-3 ml-auto">
+                <div className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-red-500" /> Critical</div>
+                <div className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-orange-500" /> High</div>
+                <div className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-yellow-500" /> Medium</div>
+                <div className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-slate-200 dark:bg-slate-700 px-1 font-bold text-slate-600">95</span> Risk Score</div>
               </div>
             </div>
 
-            {/* Attack Chain Workflow */}
-            <div className="relative">
-              <h4 className="text-xs font-medium text-slate-500 uppercase mb-3">Attack Chain / Kill Chain</h4>
-              <div className="flex items-center gap-1 overflow-x-auto pb-2">
-                {[
-                  { phase: 'Initial Access', icon: <Mail className="w-4 h-4" />, detail: 'Phishing Email', color: 'bg-red-500', time: '02:15' },
-                  { phase: 'Execution', icon: <Activity className="w-4 h-4" />, detail: 'Macro → PowerShell', color: 'bg-red-600', time: '02:18' },
-                  { phase: 'Persistence', icon: <RotateCw className="w-4 h-4" />, detail: 'Scheduled Task', color: 'bg-orange-500', time: '02:25' },
-                  { phase: 'Priv. Escalation', icon: <Unlock className="w-4 h-4" />, detail: 'Mimikatz DCSync', color: 'bg-orange-600', time: '02:28' },
-                  { phase: 'Lateral Movement', icon: <Network className="w-4 h-4" />, detail: 'PsExec → DC, FS', color: 'bg-yellow-500', time: '02:30' },
-                  { phase: 'Collection', icon: <HardDrive className="w-4 h-4" />, detail: 'Finance Share', color: 'bg-yellow-600', time: '02:35' },
-                  { phase: 'Exfiltration', icon: <Cloud className="w-4 h-4" />, detail: '1,247 files → C2', color: 'bg-purple-500', time: '02:35' },
-                  { phase: 'Impact', icon: <Lock className="w-4 h-4" />, detail: 'Encryption Started', color: 'bg-red-700', time: '02:40' },
-                ].map((step, idx, arr) => (
-                  <div key={idx} className="flex items-center">
-                    <Tooltip content={`${step.phase}: ${step.detail} (${step.time})`}>
-                      <div className={cn(
-                        'flex flex-col items-center gap-1 p-2 rounded-lg min-w-[90px] transition-transform hover:scale-105',
-                        'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700'
-                      )}>
-                        <div className={cn('w-8 h-8 rounded-full flex items-center justify-center text-white', step.color)}>
-                          {step.icon}
-                        </div>
-                        <span className="text-[10px] font-medium text-slate-700 dark:text-slate-300 text-center leading-tight">{step.phase}</span>
-                        <span className="text-[9px] text-slate-400 text-center">{step.detail}</span>
-                        <span className="text-[9px] font-mono text-slate-400">{step.time}</span>
-                      </div>
-                    </Tooltip>
-                    {idx < arr.length - 1 && (
-                      <ArrowRight className="w-4 h-4 text-slate-300 dark:text-slate-600 mx-0.5 flex-shrink-0" />
-                    )}
+            {/* Multi-Dimensional Timeline Graph */}
+            <div className="relative overflow-x-auto">
+              {/* Time axis (horizontal) */}
+              <div className="flex items-end mb-1 ml-[140px]">
+                {TIME_SLOTS.map((slot) => (
+                  <div key={slot} className="flex-1 text-center">
+                    <span className="text-[10px] font-mono text-slate-400">{slot}</span>
                   </div>
                 ))}
               </div>
+              <div className="ml-[140px] mb-2 h-px bg-slate-200 dark:bg-slate-700" />
+
+              {/* Event Rows - each phase is a row on the vertical axis */}
+              <div className="space-y-1">
+                {ATTACK_TIMELINE.map((event) => {
+                  const pos = getTimePosition(event.time);
+                  const riskColors = getRiskScoreColor(event.riskScore);
+                  const isSelected = selectedAttackEvent?.id === event.id;
+
+                  return (
+                    <div key={event.id} className="flex items-center gap-0 group">
+                      {/* Vertical axis label (Phase) */}
+                      <div className="w-[140px] flex-shrink-0 pr-2 text-right">
+                        <span className="text-[10px] font-medium text-slate-500 leading-none">{event.phase}</span>
+                        <br />
+                        <span className="text-[9px] font-mono text-slate-400">{event.time}</span>
+                      </div>
+
+                      {/* Horizontal timeline bar */}
+                      <div className="flex-1 relative h-12 bg-slate-50 dark:bg-slate-800/30 rounded border border-slate-100 dark:border-slate-800">
+                        {/* Grid lines */}
+                        {TIME_SLOTS.map((_, idx) => (
+                          <div
+                            key={idx}
+                            className="absolute top-0 bottom-0 w-px bg-slate-100 dark:bg-slate-800"
+                            style={{ left: `${(idx / (TIME_SLOTS.length - 1)) * 100}%` }}
+                          />
+                        ))}
+
+                        {/* Connection line to previous event */}
+                        {event.phaseIndex > 0 && (
+                          <div
+                            className="absolute top-0 h-px bg-red-300 dark:bg-red-700 z-0"
+                            style={{
+                              left: `${getTimePosition(ATTACK_TIMELINE[event.phaseIndex - 1].time)}%`,
+                              width: `${pos - getTimePosition(ATTACK_TIMELINE[event.phaseIndex - 1].time)}%`,
+                            }}
+                          />
+                        )}
+
+                        {/* Event node */}
+                        <Tooltip content={
+                          <div className="max-w-xs">
+                            <div className="font-semibold">{event.title}</div>
+                            <div className="text-xs mt-1 opacity-80">{event.description}</div>
+                            <div className="text-xs mt-1 font-mono opacity-60">Risk Score: {event.riskScore}/100</div>
+                            <div className="text-xs opacity-60">TTPs: {event.ttps.map(t => t.id).join(', ')}</div>
+                            <div className="text-xs mt-1 opacity-60">Click for full details →</div>
+                          </div>
+                        }>
+                          <button
+                            onClick={() => setSelectedAttackEvent(isSelected ? null : event)}
+                            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 z-10 transition-all duration-200"
+                            style={{ left: `${pos}%` }}
+                          >
+                            <div className={cn(
+                              'flex items-center gap-1.5 px-2 py-1 rounded-lg border-2 transition-all',
+                              isSelected ? 'scale-110 shadow-lg' : 'hover:scale-105',
+                              event.severity === 'critical' ? 'bg-red-50 border-red-400 dark:bg-red-900/20 dark:border-red-600' :
+                              event.severity === 'high' ? 'bg-orange-50 border-orange-400 dark:bg-orange-900/20 dark:border-orange-600' :
+                              'bg-yellow-50 border-yellow-400 dark:bg-yellow-900/20 dark:border-yellow-600',
+                              isSelected && 'ring-2 ring-offset-1 ' + riskColors.ring
+                            )}>
+                              <div className={cn('w-5 h-5 rounded-full flex items-center justify-center text-white flex-shrink-0', event.color)}>
+                                {event.icon}
+                              </div>
+                              {/* KPI-style Risk Score */}
+                              <span className={cn(
+                                'text-sm font-black tabular-nums leading-none',
+                                riskColors.text
+                              )}>
+                                {event.riskScore}
+                              </span>
+                            </div>
+                          </button>
+                        </Tooltip>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
-            {/* Affected Resources */}
+            {/* Attack Event Detail Panel (drill-down) */}
+            {selectedAttackEvent && (
+              <div className="border-2 border-forensic-300 dark:border-forensic-700 rounded-xl overflow-hidden">
+                <div className={cn('p-4', selectedAttackEvent.severity === 'critical' ? 'bg-red-50 dark:bg-red-900/10' : selectedAttackEvent.severity === 'high' ? 'bg-orange-50 dark:bg-orange-900/10' : 'bg-yellow-50 dark:bg-yellow-900/10')}>
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={cn('w-10 h-10 rounded-full flex items-center justify-center text-white', selectedAttackEvent.color)}>
+                        {selectedAttackEvent.icon}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold text-slate-900 dark:text-slate-100">{selectedAttackEvent.title}</h3>
+                          <span className={cn(
+                            'px-2 py-0.5 rounded text-xs font-bold',
+                            selectedAttackEvent.severity === 'critical' ? 'bg-red-200 text-red-800 dark:bg-red-900/40 dark:text-red-300' :
+                            selectedAttackEvent.severity === 'high' ? 'bg-orange-200 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300' :
+                            'bg-yellow-200 text-yellow-800'
+                          )}>{selectedAttackEvent.severity.toUpperCase()}</span>
+                        </div>
+                        <p className="text-sm text-slate-500 mt-0.5">{selectedAttackEvent.phase} — {selectedAttackEvent.date} at {selectedAttackEvent.time}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {/* Large KPI Risk Score */}
+                      <div className="text-center">
+                        <span className={cn('text-3xl font-black tabular-nums', getRiskScoreColor(selectedAttackEvent.riskScore).text)}>
+                          {selectedAttackEvent.riskScore}
+                        </span>
+                        <p className="text-[10px] text-slate-400 uppercase font-medium">Risk Score</p>
+                      </div>
+                      <button onClick={() => setSelectedAttackEvent(null)} className="p-1 hover:bg-white/50 rounded">
+                        <X className="w-5 h-5 text-slate-400" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-white dark:bg-slate-800 space-y-4">
+                  {/* Description */}
+                  <div>
+                    <h4 className="text-xs font-semibold text-slate-500 uppercase mb-1 flex items-center gap-1"><Info className="w-3 h-3" /> Description</h4>
+                    <p className="text-sm text-slate-700 dark:text-slate-300">{selectedAttackEvent.details}</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {/* IOCs */}
+                    <div>
+                      <h4 className="text-xs font-semibold text-slate-500 uppercase mb-2 flex items-center gap-1">
+                        <Target className="w-3 h-3" /> Indicators of Compromise ({selectedAttackEvent.iocs.length})
+                      </h4>
+                      <div className="space-y-1">
+                        {selectedAttackEvent.iocs.map((ioc, idx) => (
+                          <div key={idx} className="flex items-center gap-2 p-2 bg-slate-50 dark:bg-slate-700/50 rounded text-xs">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0" />
+                            <span className="text-slate-500 w-20 flex-shrink-0">{ioc.type}:</span>
+                            <span className="font-mono text-slate-700 dark:text-slate-300 truncate">{ioc.value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* TTPs */}
+                    <div>
+                      <h4 className="text-xs font-semibold text-slate-500 uppercase mb-2 flex items-center gap-1">
+                        <Crosshair className="w-3 h-3" /> MITRE ATT&CK TTPs ({selectedAttackEvent.ttps.length})
+                      </h4>
+                      <div className="space-y-1">
+                        {selectedAttackEvent.ttps.map((ttp, idx) => (
+                          <div key={idx} className="flex items-center gap-2 p-2 bg-slate-50 dark:bg-slate-700/50 rounded text-xs">
+                            <span className="px-1.5 py-0.5 bg-forensic-100 dark:bg-forensic-900/30 text-forensic-700 dark:text-forensic-300 rounded font-mono font-bold text-[10px]">{ttp.id}</span>
+                            <span className="text-slate-700 dark:text-slate-300 flex-1">{ttp.name}</span>
+                            <span className="text-slate-400 text-[10px]">{ttp.tactic}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Affected Assets */}
+                  <div>
+                    <h4 className="text-xs font-semibold text-slate-500 uppercase mb-2 flex items-center gap-1">
+                      <Server className="w-3 h-3" /> Affected Assets ({selectedAttackEvent.affectedAssets.length})
+                    </h4>
+                    <div className="flex flex-wrap gap-1">
+                      {selectedAttackEvent.affectedAssets.map((asset, idx) => (
+                        <span key={idx} className="px-2 py-1 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 text-xs rounded-lg border border-red-200 dark:border-red-800 font-mono">
+                          {asset}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Affected Resources Summary */}
             <div>
               <h4 className="text-xs font-medium text-slate-500 uppercase mb-3">Affected Resources</h4>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
