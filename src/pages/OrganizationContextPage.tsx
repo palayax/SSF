@@ -12,6 +12,12 @@ import {
   Network,
   Shield,
   Clock,
+  Users,
+  KeyRound,
+  Building2,
+  UserCheck,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { Card, CardHeader, Tooltip } from '@/components/common';
@@ -20,7 +26,7 @@ import { useSessionStore, useContextStore } from '@/store';
 import { formatFileSize } from '@/utils/formatters';
 import { DOCUMENT_TYPE_INFO, REPOSITORY_TYPE_INFO } from '@/utils/constants';
 import type { UploadedDocument } from '@/types';
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useState } from 'react';
 
 /**
  * Organization Context Page
@@ -243,6 +249,59 @@ export default function OrganizationContextPage() {
         </section>
       )}
 
+      {/* IAM - Identity & Access Management */}
+      {(totalSystems > 0 || documents.length > 0) && (
+        <section className="mt-8 mb-8">
+          <h3 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
+            Identity & Access Management
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <IAMCube
+              icon={<Users className="w-6 h-6" />}
+              title="Active Directory"
+              subtitle="On-Premises AD"
+              status="detected"
+              details={[
+                { label: 'Domain Controllers', value: '2 detected' },
+                { label: 'Forest', value: 'corp.local' },
+                { label: 'Functional Level', value: '2016' },
+                { label: 'User Accounts', value: '~1,250' },
+                { label: 'Service Accounts', value: '~45' },
+                { label: 'Group Policies', value: '38 linked' },
+              ]}
+            />
+            <IAMCube
+              icon={<KeyRound className="w-6 h-6" />}
+              title="Azure AD / Entra ID"
+              subtitle="Cloud Identity"
+              status="detected"
+              details={[
+                { label: 'Tenant', value: 'company.onmicrosoft.com' },
+                { label: 'Synced Users', value: '~1,180' },
+                { label: 'Cloud-Only Users', value: '~70' },
+                { label: 'MFA Enforced', value: '62%' },
+                { label: 'Conditional Access', value: '8 policies' },
+                { label: 'App Registrations', value: '24' },
+              ]}
+            />
+            <IAMCube
+              icon={<Building2 className="w-6 h-6" />}
+              title="Hybrid Identity"
+              subtitle="AD Connect Sync"
+              status="synced"
+              details={[
+                { label: 'Sync Status', value: 'Healthy' },
+                { label: 'Last Sync', value: '12 min ago' },
+                { label: 'Sync Method', value: 'Password Hash' },
+                { label: 'Privileged Roles', value: '15 Global Admins' },
+                { label: 'Guest Accounts', value: '34' },
+                { label: 'Stale Accounts (90d)', value: '127' },
+              ]}
+            />
+          </div>
+        </section>
+      )}
+
       {/* Empty State */}
       {documents.length === 0 && repositories.length === 0 && (
         <EmptyState
@@ -359,5 +418,107 @@ function ContextSummaryCard({
         </div>
       </Card>
     </Tooltip>
+  );
+}
+
+/**
+ * IAM Cube Component - 3D-style card for identity providers
+ */
+interface IAMCubeProps {
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+  status: 'detected' | 'synced' | 'error' | 'not_found';
+  details: { label: string; value: string }[];
+}
+
+function IAMCube({ icon, title, subtitle, status, details }: IAMCubeProps) {
+  const [expanded, setExpanded] = useState(false);
+
+  const statusColors = {
+    detected: 'border-green-400 dark:border-green-600',
+    synced: 'border-blue-400 dark:border-blue-600',
+    error: 'border-red-400 dark:border-red-600',
+    not_found: 'border-slate-300 dark:border-slate-600',
+  };
+
+  const statusBadge = {
+    detected: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+    synced: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+    error: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+    not_found: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
+  };
+
+  const statusLabel = {
+    detected: 'Detected',
+    synced: 'Synced',
+    error: 'Error',
+    not_found: 'Not Found',
+  };
+
+  return (
+    <Card
+      className={cn(
+        'relative border-2 transition-all duration-300 cursor-pointer',
+        'hover:shadow-lg hover:-translate-y-0.5',
+        'bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-800/50',
+        statusColors[status]
+      )}
+    >
+      <div onClick={() => setExpanded(!expanded)}>
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <div className={cn(
+              'p-2 rounded-lg',
+              status === 'detected' ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' :
+              status === 'synced' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' :
+              'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'
+            )}>
+              {icon}
+            </div>
+            <div>
+              <h4 className="font-semibold text-slate-900 dark:text-slate-100 text-sm">
+                {title}
+              </h4>
+              <p className="text-xs text-slate-500">{subtitle}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={cn('px-2 py-0.5 rounded-full text-xs font-medium', statusBadge[status])}>
+              {statusLabel[status]}
+            </span>
+            {expanded ? (
+              <ChevronDown className="w-4 h-4 text-slate-400" />
+            ) : (
+              <ChevronRight className="w-4 h-4 text-slate-400" />
+            )}
+          </div>
+        </div>
+
+        {/* Quick stats preview */}
+        {!expanded && (
+          <div className="flex items-center gap-2 text-xs text-slate-500">
+            <UserCheck className="w-3 h-3" />
+            <span>{details[0]?.value}</span>
+            <span className="text-slate-300 dark:text-slate-600">|</span>
+            <span>{details[1]?.value}</span>
+          </div>
+        )}
+
+        {/* Expanded details */}
+        {expanded && (
+          <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700 space-y-2">
+            {details.map((detail, idx) => (
+              <div key={idx} className="flex items-center justify-between text-xs">
+                <span className="text-slate-500">{detail.label}</span>
+                <span className="font-medium text-slate-700 dark:text-slate-300">
+                  {detail.value}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </Card>
   );
 }

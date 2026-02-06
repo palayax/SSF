@@ -14,6 +14,19 @@ import {
   Cloud,
   Shield,
   Activity,
+  UserX,
+  Server,
+  ArrowRight,
+  Lock,
+  Unlock,
+  Network,
+  Key,
+  HardDrive,
+  Mail,
+  RotateCw,
+  Skull,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { formatDateTime, formatTimestamp } from '@/utils/formatters';
@@ -93,6 +106,7 @@ export default function TimelineViewPage() {
   const [selectedEvent, setSelectedEvent] = useState<typeof MOCK_EVENTS[0] | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [zoomLevel, setZoomLevel] = useState(1);
+  const [showAttackFlow, setShowAttackFlow] = useState(true);
 
   const handleBack = () => {
     goToPreviousStep();
@@ -190,6 +204,152 @@ export default function TimelineViewPage() {
           </Button>
         </Tooltip>
       </div>
+
+      {/* Attack Flow Visualization */}
+      <Card className="mb-6">
+        <button
+          onClick={() => setShowAttackFlow(!showAttackFlow)}
+          className="w-full flex items-center justify-between"
+        >
+          <div className="flex items-center gap-2">
+            <Skull className="w-5 h-5 text-red-500" />
+            <span className="font-semibold text-slate-900 dark:text-slate-100">Attack Flow Visualization</span>
+            <span className="text-xs bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-2 py-0.5 rounded-full">Live</span>
+          </div>
+          {showAttackFlow ? <ChevronDown className="w-5 h-5 text-slate-400" /> : <ChevronRight className="w-5 h-5 text-slate-400" />}
+        </button>
+
+        {showAttackFlow && (
+          <div className="mt-4 space-y-6">
+            {/* Attacker & Compromised Users Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Attacker Profile */}
+              <div className="p-4 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/50 rounded-lg">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-full bg-red-500 flex items-center justify-center">
+                    <Skull className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-red-800 dark:text-red-300 text-sm">Threat Actor</h4>
+                    <p className="text-xs text-red-600 dark:text-red-400">External / Unknown Attribution</p>
+                  </div>
+                </div>
+                <div className="space-y-1 text-xs">
+                  <div className="flex justify-between"><span className="text-red-600 dark:text-red-400">Origin IP:</span><span className="font-mono text-red-800 dark:text-red-300">185.220.101.42</span></div>
+                  <div className="flex justify-between"><span className="text-red-600 dark:text-red-400">C2 Server:</span><span className="font-mono text-red-800 dark:text-red-300">update-service.xyz:443</span></div>
+                  <div className="flex justify-between"><span className="text-red-600 dark:text-red-400">Initial Vector:</span><span className="text-red-800 dark:text-red-300">Phishing Email</span></div>
+                  <div className="flex justify-between"><span className="text-red-600 dark:text-red-400">Tools Used:</span><span className="text-red-800 dark:text-red-300">PsExec, Mimikatz, Cobalt Strike</span></div>
+                </div>
+              </div>
+
+              {/* Compromised Users */}
+              <div className="p-4 bg-orange-50 dark:bg-orange-900/10 border border-orange-200 dark:border-orange-900/50 rounded-lg">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center">
+                    <UserX className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-orange-800 dark:text-orange-300 text-sm">Compromised Users</h4>
+                    <p className="text-xs text-orange-600 dark:text-orange-400">3 accounts confirmed compromised</p>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  {[
+                    { user: 'jsmith@company.com', type: 'Phished', access: 'Domain User + VPN', icon: <Mail className="w-3 h-3" /> },
+                    { user: 'admin.jsmith', type: 'Credential Theft', access: 'Domain Admin', icon: <Key className="w-3 h-3" /> },
+                    { user: 'svc-backup', type: 'Token Impersonation', access: 'Backup Operator', icon: <Server className="w-3 h-3" /> },
+                  ].map((u, idx) => (
+                    <div key={idx} className="flex items-center gap-2 text-xs p-2 bg-white dark:bg-slate-800 rounded">
+                      <span className="text-orange-500">{u.icon}</span>
+                      <span className="font-mono font-medium text-slate-700 dark:text-slate-300 flex-1">{u.user}</span>
+                      <span className="px-1.5 py-0.5 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded text-[10px]">{u.type}</span>
+                      <span className="text-slate-400">{u.access}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Attack Chain Workflow */}
+            <div className="relative">
+              <h4 className="text-xs font-medium text-slate-500 uppercase mb-3">Attack Chain / Kill Chain</h4>
+              <div className="flex items-center gap-1 overflow-x-auto pb-2">
+                {[
+                  { phase: 'Initial Access', icon: <Mail className="w-4 h-4" />, detail: 'Phishing Email', color: 'bg-red-500', time: '02:15' },
+                  { phase: 'Execution', icon: <Activity className="w-4 h-4" />, detail: 'Macro → PowerShell', color: 'bg-red-600', time: '02:18' },
+                  { phase: 'Persistence', icon: <RotateCw className="w-4 h-4" />, detail: 'Scheduled Task', color: 'bg-orange-500', time: '02:25' },
+                  { phase: 'Priv. Escalation', icon: <Unlock className="w-4 h-4" />, detail: 'Mimikatz DCSync', color: 'bg-orange-600', time: '02:28' },
+                  { phase: 'Lateral Movement', icon: <Network className="w-4 h-4" />, detail: 'PsExec → DC, FS', color: 'bg-yellow-500', time: '02:30' },
+                  { phase: 'Collection', icon: <HardDrive className="w-4 h-4" />, detail: 'Finance Share', color: 'bg-yellow-600', time: '02:35' },
+                  { phase: 'Exfiltration', icon: <Cloud className="w-4 h-4" />, detail: '1,247 files → C2', color: 'bg-purple-500', time: '02:35' },
+                  { phase: 'Impact', icon: <Lock className="w-4 h-4" />, detail: 'Encryption Started', color: 'bg-red-700', time: '02:40' },
+                ].map((step, idx, arr) => (
+                  <div key={idx} className="flex items-center">
+                    <Tooltip content={`${step.phase}: ${step.detail} (${step.time})`}>
+                      <div className={cn(
+                        'flex flex-col items-center gap-1 p-2 rounded-lg min-w-[90px] transition-transform hover:scale-105',
+                        'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700'
+                      )}>
+                        <div className={cn('w-8 h-8 rounded-full flex items-center justify-center text-white', step.color)}>
+                          {step.icon}
+                        </div>
+                        <span className="text-[10px] font-medium text-slate-700 dark:text-slate-300 text-center leading-tight">{step.phase}</span>
+                        <span className="text-[9px] text-slate-400 text-center">{step.detail}</span>
+                        <span className="text-[9px] font-mono text-slate-400">{step.time}</span>
+                      </div>
+                    </Tooltip>
+                    {idx < arr.length - 1 && (
+                      <ArrowRight className="w-4 h-4 text-slate-300 dark:text-slate-600 mx-0.5 flex-shrink-0" />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Affected Resources */}
+            <div>
+              <h4 className="text-xs font-medium text-slate-500 uppercase mb-3">Affected Resources</h4>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {[
+                  { name: 'WS-FIN-042', role: 'Patient Zero', severity: 'critical', icon: <Monitor className="w-4 h-4" /> },
+                  { name: 'DC-MAIN-01', role: 'Domain Controller', severity: 'critical', icon: <Server className="w-4 h-4" /> },
+                  { name: 'FS-FINANCE-01', role: 'File Server', severity: 'high', icon: <HardDrive className="w-4 h-4" /> },
+                  { name: 'BKP-SERVER-01', role: 'Backup Server', severity: 'high', icon: <Server className="w-4 h-4" /> },
+                  { name: 'WEB-APP-01', role: 'Web Server', severity: 'medium', icon: <Cloud className="w-4 h-4" /> },
+                  { name: 'EXCH-01', role: 'Exchange Server', severity: 'medium', icon: <Mail className="w-4 h-4" /> },
+                  { name: 'PRINT-SRV-01', role: 'Print Server', severity: 'low', icon: <Server className="w-4 h-4" /> },
+                  { name: 'VPN Gateway', role: 'Network Device', severity: 'high', icon: <Shield className="w-4 h-4" /> },
+                ].map((res, idx) => (
+                  <div
+                    key={idx}
+                    className={cn(
+                      'p-2 rounded-lg border text-xs',
+                      res.severity === 'critical' ? 'border-red-300 bg-red-50 dark:bg-red-900/10 dark:border-red-900/50' :
+                      res.severity === 'high' ? 'border-orange-300 bg-orange-50 dark:bg-orange-900/10 dark:border-orange-900/50' :
+                      res.severity === 'medium' ? 'border-yellow-300 bg-yellow-50 dark:bg-yellow-900/10 dark:border-yellow-900/50' :
+                      'border-slate-200 bg-slate-50 dark:bg-slate-800/50 dark:border-slate-700'
+                    )}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-slate-400">{res.icon}</span>
+                      <span className="font-medium text-slate-700 dark:text-slate-300">{res.name}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">{res.role}</span>
+                      <span className={cn(
+                        'px-1 py-0.5 rounded text-[10px] font-medium',
+                        res.severity === 'critical' ? 'bg-red-200 text-red-700 dark:bg-red-900/40 dark:text-red-400' :
+                        res.severity === 'high' ? 'bg-orange-200 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400' :
+                        'bg-yellow-200 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-400'
+                      )}>{res.severity}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Timeline */}

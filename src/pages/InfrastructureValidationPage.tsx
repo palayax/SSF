@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { PageContainer, PageNavigation } from '@/components/layout';
 import { useSessionStore, useContextStore, useValidationStore } from '@/store';
 import { Card, Button, Tooltip, Badge, Spinner } from '@/components/common';
@@ -15,6 +15,16 @@ import {
   ToggleLeft,
   ToggleRight,
   Server,
+  Network,
+  Users,
+  Shield,
+  Database,
+  Cloud,
+  Globe,
+  ChevronDown,
+  ChevronRight,
+  Layers,
+  ArrowRight,
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import type { SystemValidation } from '@/types';
@@ -43,6 +53,9 @@ export default function InfrastructureValidationPage() {
     validateAllSystems,
   } = useValidationStore();
 
+  const [showSummary, setShowSummary] = useState(false);
+  const [expandedSection, setExpandedSection] = useState<string | null>(null);
+
   // Initialize validation systems from extracted entities
   useEffect(() => {
     if (extractedEntities.systems.length > 0 && systems.length === 0) {
@@ -51,11 +64,19 @@ export default function InfrastructureValidationPage() {
   }, [extractedEntities.systems, systems.length, initializeFromSystems]);
 
   const handleBack = () => {
+    if (showSummary) {
+      setShowSummary(false);
+      return;
+    }
     goToPreviousStep();
     navigate('/connectors');
   };
 
   const handleContinue = () => {
+    if (!showSummary && verifiedCount > 0) {
+      setShowSummary(true);
+      return;
+    }
     goToNextStep();
     navigate('/triage');
   };
@@ -110,12 +131,249 @@ export default function InfrastructureValidationPage() {
       footer={
         <PageNavigation
           onBack={handleBack}
-          backLabel="Connectors"
+          backLabel={showSummary ? 'Back to Validation' : 'Connectors'}
           onContinue={handleContinue}
-          continueLabel={discrepancies.length > 0 ? 'Continue with Warnings' : 'Continue'}
+          continueLabel={showSummary ? 'Proceed to Triage' : (discrepancies.length > 0 ? 'View Summary' : 'View Summary')}
         />
       }
     >
+      {/* INFRASTRUCTURE SUMMARY VIEW */}
+      {showSummary && (
+        <div className="space-y-6">
+          <Card className="bg-gradient-to-br from-forensic-50 to-white dark:from-forensic-900/20 dark:to-slate-800">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-forensic-100 dark:bg-forensic-900/30 rounded-lg">
+                <Layers className="w-6 h-6 text-forensic-600 dark:text-forensic-400" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Infrastructure Summary</h2>
+                <p className="text-sm text-slate-500">Complete overview of discovered resources before triage begins</p>
+              </div>
+            </div>
+
+            {/* Summary Stats Row */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+              <div className="p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 text-center">
+                <Server className="w-5 h-5 mx-auto text-blue-500 mb-1" />
+                <p className="text-xl font-bold text-slate-900 dark:text-slate-100">{extractedEntities.systems.length}</p>
+                <p className="text-xs text-slate-500">Systems</p>
+              </div>
+              <div className="p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 text-center">
+                <Network className="w-5 h-5 mx-auto text-green-500 mb-1" />
+                <p className="text-xl font-bold text-slate-900 dark:text-slate-100">{extractedEntities.networks.length}</p>
+                <p className="text-xs text-slate-500">Networks</p>
+              </div>
+              <div className="p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 text-center">
+                <Users className="w-5 h-5 mx-auto text-purple-500 mb-1" />
+                <p className="text-xl font-bold text-slate-900 dark:text-slate-100">~1,250</p>
+                <p className="text-xs text-slate-500">Employees</p>
+              </div>
+              <div className="p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 text-center">
+                <Cloud className="w-5 h-5 mx-auto text-cyan-500 mb-1" />
+                <p className="text-xl font-bold text-slate-900 dark:text-slate-100">3</p>
+                <p className="text-xs text-slate-500">Cloud Services</p>
+              </div>
+              <div className="p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 text-center">
+                <Database className="w-5 h-5 mx-auto text-orange-500 mb-1" />
+                <p className="text-xl font-bold text-slate-900 dark:text-slate-100">{extractedEntities.processes.length}</p>
+                <p className="text-xs text-slate-500">Processes</p>
+              </div>
+              <div className="p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 text-center">
+                <Shield className="w-5 h-5 mx-auto text-red-500 mb-1" />
+                <p className="text-xl font-bold text-slate-900 dark:text-slate-100">{extractedEntities.compliance.length}</p>
+                <p className="text-xs text-slate-500">Compliance</p>
+              </div>
+            </div>
+          </Card>
+
+          {/* Drilldown Sections */}
+          <SummaryDrilldown
+            title="Systems & Servers"
+            icon={<Server className="w-5 h-5 text-blue-500" />}
+            count={extractedEntities.systems.length}
+            isExpanded={expandedSection === 'systems'}
+            onToggle={() => setExpandedSection(expandedSection === 'systems' ? null : 'systems')}
+          >
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs text-slate-500 uppercase">
+                    <th className="pb-2">Hostname</th>
+                    <th className="pb-2">IP</th>
+                    <th className="pb-2">Role</th>
+                    <th className="pb-2">OS</th>
+                    <th className="pb-2">Criticality</th>
+                    <th className="pb-2">Validation</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                  {extractedEntities.systems.map((sys) => {
+                    const val = systems.find((s) => s.hostname === sys.hostname);
+                    return (
+                      <tr key={sys.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                        <td className="py-2 font-medium">{sys.hostname}</td>
+                        <td className="py-2 font-mono text-xs text-slate-500">{sys.ip || 'N/A'}</td>
+                        <td className="py-2 text-slate-600 dark:text-slate-400">{sys.role}</td>
+                        <td className="py-2 text-slate-500 text-xs">{sys.os || '-'}</td>
+                        <td className="py-2">
+                          <span className={cn(
+                            'px-2 py-0.5 rounded-full text-xs font-medium',
+                            sys.criticality === 'critical' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                            sys.criticality === 'high' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
+                            'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                          )}>{sys.criticality}</span>
+                        </td>
+                        <td className="py-2">
+                          {val ? (
+                            <span className={cn(
+                              'flex items-center gap-1 text-xs',
+                              val.overallStatus === 'verified' ? 'text-green-600' :
+                              val.overallStatus === 'failed' ? 'text-red-600' : 'text-yellow-600'
+                            )}>
+                              {val.overallStatus === 'verified' && <CheckCircle className="w-3 h-3" />}
+                              {val.overallStatus === 'failed' && <XCircle className="w-3 h-3" />}
+                              {val.overallStatus === 'pending' && <Clock className="w-3 h-3" />}
+                              {val.overallStatus}
+                            </span>
+                          ) : <span className="text-xs text-slate-400">-</span>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </SummaryDrilldown>
+
+          <SummaryDrilldown
+            title="Network Segments"
+            icon={<Network className="w-5 h-5 text-green-500" />}
+            count={extractedEntities.networks.length}
+            isExpanded={expandedSection === 'networks'}
+            onToggle={() => setExpandedSection(expandedSection === 'networks' ? null : 'networks')}
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {extractedEntities.networks.map((net) => (
+                <div key={net.id} className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Globe className="w-4 h-4 text-green-500" />
+                    <span className="font-medium text-sm">{net.name}</span>
+                    {net.vlan && <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-1.5 rounded">VLAN {net.vlan}</span>}
+                  </div>
+                  <p className="text-xs font-mono text-slate-500">{net.cidr}</p>
+                  <p className="text-xs text-slate-400 mt-1">{net.description}</p>
+                </div>
+              ))}
+            </div>
+          </SummaryDrilldown>
+
+          <SummaryDrilldown
+            title="Business Processes"
+            icon={<Database className="w-5 h-5 text-orange-500" />}
+            count={extractedEntities.processes.length}
+            isExpanded={expandedSection === 'processes'}
+            onToggle={() => setExpandedSection(expandedSection === 'processes' ? null : 'processes')}
+          >
+            {extractedEntities.processes.map((proc) => (
+              <div key={proc.id} className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg mb-2">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-medium text-sm">{proc.name}</span>
+                  <span className={cn(
+                    'px-2 py-0.5 rounded-full text-xs font-medium',
+                    proc.criticality === 'critical' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-orange-100 text-orange-700'
+                  )}>{proc.criticality}</span>
+                </div>
+                <p className="text-xs text-slate-500">{proc.description}</p>
+                <div className="flex gap-4 mt-2 text-xs text-slate-400">
+                  <span>RTO: {proc.rto}h</span>
+                  <span>RPO: {proc.rpo}h</span>
+                  <span>Depends: {proc.dependentSystems.join(', ')}</span>
+                </div>
+              </div>
+            ))}
+          </SummaryDrilldown>
+
+          <SummaryDrilldown
+            title="Key Personnel & Employees"
+            icon={<Users className="w-5 h-5 text-purple-500" />}
+            count={8}
+            isExpanded={expandedSection === 'employees'}
+            onToggle={() => setExpandedSection(expandedSection === 'employees' ? null : 'employees')}
+          >
+            <div className="space-y-2">
+              {[
+                { name: 'John Smith', role: 'IT Director', dept: 'IT', access: 'Domain Admin', risk: 'high' },
+                { name: 'Sarah Johnson', role: 'CISO', dept: 'Security', access: 'Security Admin', risk: 'high' },
+                { name: 'Mike Chen', role: 'Sr. Network Engineer', dept: 'IT', access: 'Network Admin', risk: 'medium' },
+                { name: 'Lisa Williams', role: 'Finance Manager', dept: 'Finance', access: 'Finance Share', risk: 'medium' },
+                { name: 'svc-backup', role: 'Service Account', dept: 'System', access: 'Backup Operator', risk: 'high' },
+                { name: 'svc-sql', role: 'Service Account', dept: 'System', access: 'SQL Server Agent', risk: 'high' },
+                { name: 'admin.jsmith', role: 'Privileged Account', dept: 'IT', access: 'Domain Admin', risk: 'critical' },
+                { name: 'helpdesk-svc', role: 'Service Account', dept: 'IT', access: 'Password Reset', risk: 'medium' },
+              ].map((person, idx) => (
+                <div key={idx} className="flex items-center gap-3 p-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg text-sm">
+                  <div className={cn(
+                    'w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium',
+                    person.role.includes('Service') || person.role.includes('Privileged')
+                      ? 'bg-orange-100 text-orange-600 dark:bg-orange-900/30'
+                      : 'bg-blue-100 text-blue-600 dark:bg-blue-900/30'
+                  )}>
+                    {person.name.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="flex-1">
+                    <span className="font-medium">{person.name}</span>
+                    <span className="text-slate-400 ml-2 text-xs">{person.role}</span>
+                  </div>
+                  <span className="text-xs text-slate-500">{person.dept}</span>
+                  <span className="text-xs text-slate-400">{person.access}</span>
+                  <span className={cn(
+                    'px-1.5 py-0.5 rounded text-xs font-medium',
+                    person.risk === 'critical' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                    person.risk === 'high' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
+                    'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                  )}>{person.risk}</span>
+                </div>
+              ))}
+            </div>
+          </SummaryDrilldown>
+
+          <SummaryDrilldown
+            title="Compliance & Data Classification"
+            icon={<Shield className="w-5 h-5 text-red-500" />}
+            count={extractedEntities.compliance.length}
+            isExpanded={expandedSection === 'compliance'}
+            onToggle={() => setExpandedSection(expandedSection === 'compliance' ? null : 'compliance')}
+          >
+            {extractedEntities.compliance.map((comp) => (
+              <div key={comp.id} className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg mb-2">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="px-2 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-xs font-medium rounded">{comp.framework}</span>
+                  <span className="font-medium text-sm">{comp.requirement}</span>
+                </div>
+                <p className="text-xs text-slate-500">{comp.description}</p>
+                <p className="text-xs text-slate-400 mt-1">Applies to: {comp.applicableSystems.join(', ')}</p>
+              </div>
+            ))}
+          </SummaryDrilldown>
+
+          {/* Ready to proceed banner */}
+          <Card className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-green-200 dark:border-green-800">
+            <div className="flex items-center gap-4">
+              <CheckCircle className="w-8 h-8 text-green-500" />
+              <div className="flex-1">
+                <h3 className="font-semibold text-green-800 dark:text-green-200">Ready for Triage</h3>
+                <p className="text-sm text-green-600 dark:text-green-400">
+                  {verifiedCount} of {systems.length} systems verified. All key resources have been documented and validated. Click "Proceed to Triage" to begin forensic analysis.
+                </p>
+              </div>
+              <ArrowRight className="w-5 h-5 text-green-500" />
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* ORIGINAL VALIDATION VIEW */}
+      {!showSummary && <>
       {/* Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
         <SummaryCard
@@ -221,7 +479,47 @@ export default function InfrastructureValidationPage() {
           </table>
         </div>
       </Card>
+      </>}
     </PageContainer>
+  );
+}
+
+/**
+ * Summary Drilldown Section
+ */
+interface SummaryDrilldownProps {
+  title: string;
+  icon: React.ReactNode;
+  count: number;
+  isExpanded: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}
+
+function SummaryDrilldown({ title, icon, count, isExpanded, onToggle, children }: SummaryDrilldownProps) {
+  return (
+    <Card>
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center justify-between"
+      >
+        <div className="flex items-center gap-3">
+          {icon}
+          <span className="font-semibold text-slate-900 dark:text-slate-100">{title}</span>
+          <span className="text-xs bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-full text-slate-500">{count}</span>
+        </div>
+        {isExpanded ? (
+          <ChevronDown className="w-5 h-5 text-slate-400" />
+        ) : (
+          <ChevronRight className="w-5 h-5 text-slate-400" />
+        )}
+      </button>
+      {isExpanded && (
+        <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+          {children}
+        </div>
+      )}
+    </Card>
   );
 }
 

@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { PageContainer, PageNavigation } from '@/components/layout';
 import { useSessionStore } from '@/store';
 import { Card, CardHeader, Button, Tooltip, CircularProgress, Progress } from '@/components/common';
@@ -13,9 +13,80 @@ import {
   Database,
   GitBranch,
   Radar,
+  Search,
+  Globe,
+  AlertTriangle,
+  Eye,
+  KeyRound,
+  User,
+  Loader2,
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { formatTimestamp } from '@/utils/formatters';
+
+interface CTIResult {
+  id: string;
+  type: 'pii_exposure' | 'leaked_credentials' | 'darknet_mention' | 'paste_site' | 'breach_database';
+  source: string;
+  severity: 'critical' | 'high' | 'medium' | 'low';
+  title: string;
+  description: string;
+  date: string;
+  indicators: string[];
+}
+
+const MOCK_CTI_RESULTS: CTIResult[] = [
+  {
+    id: 'cti-1',
+    type: 'leaked_credentials',
+    source: 'BreachDB (OSINT)',
+    severity: 'critical',
+    title: 'Compromised credentials found in 2024 data breach',
+    description: '12 corporate email addresses with password hashes found in recent breach dump. Includes admin accounts.',
+    date: '2024-01-10',
+    indicators: ['admin.jsmith@company.com', 'svc-backup@company.com', 'sarah.j@company.com'],
+  },
+  {
+    id: 'cti-2',
+    type: 'darknet_mention',
+    source: 'Darknet Forum Monitoring',
+    severity: 'high',
+    title: 'Company network access for sale on darknet forum',
+    description: 'Initial access broker offering VPN credentials and internal network maps. Listed 3 days before the incident.',
+    date: '2024-01-12',
+    indicators: ['vpn.company.com', 'RDP access - Finance segment', '$5,000 asking price'],
+  },
+  {
+    id: 'cti-3',
+    type: 'pii_exposure',
+    source: 'Public Paste Sites',
+    severity: 'high',
+    title: 'Employee PII leaked on paste site',
+    description: 'Partial employee directory with names, email addresses, phone numbers, and department info found on public paste site.',
+    date: '2024-01-08',
+    indicators: ['~250 employee records', 'Names, emails, phone numbers', 'Department structure'],
+  },
+  {
+    id: 'cti-4',
+    type: 'breach_database',
+    source: 'Have I Been Pwned (OSINT)',
+    severity: 'medium',
+    title: 'Domain appears in 3 known breach databases',
+    description: 'company.com domain found across multiple breach databases with varying dates and data types exposed.',
+    date: '2023-11-15',
+    indicators: ['LinkedIn breach (2023)', 'Third-party SaaS breach (2024)', 'Marketing platform leak (2023)'],
+  },
+  {
+    id: 'cti-5',
+    type: 'paste_site',
+    source: 'GitHub/Gist OSINT',
+    severity: 'medium',
+    title: 'Internal API keys found in public GitHub repos',
+    description: 'AWS access keys and internal API tokens committed to public repositories by developers.',
+    date: '2024-01-05',
+    indicators: ['AWS Access Key: AKIA****', 'Slack webhook URL', 'Internal API bearer token'],
+  },
+];
 
 interface ActivityLog {
   id: string;
@@ -61,6 +132,11 @@ export default function TriageProcessPage() {
     low: 0,
     ambiguous: 0,
   });
+
+  const [ctiQuery, setCtiQuery] = useState('');
+  const [ctiSearching, setCtiSearching] = useState(false);
+  const [ctiResults, setCtiResults] = useState<CTIResult[]>([]);
+  const [ctiSearchType, setCtiSearchType] = useState<'all' | 'pii' | 'credentials' | 'darknet'>('all');
 
   const activityRef = useRef<HTMLDivElement>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -188,6 +264,23 @@ export default function TriageProcessPage() {
     if (phaseProgress[index] > 0) return 'running';
     return 'pending';
   };
+
+  const handleCTISearch = useCallback(() => {
+    setCtiSearching(true);
+    setCtiResults([]);
+    setTimeout(() => {
+      const filtered = ctiSearchType === 'all'
+        ? MOCK_CTI_RESULTS
+        : MOCK_CTI_RESULTS.filter((r) => {
+            if (ctiSearchType === 'credentials') return r.type === 'leaked_credentials' || r.type === 'breach_database';
+            if (ctiSearchType === 'pii') return r.type === 'pii_exposure' || r.type === 'paste_site';
+            if (ctiSearchType === 'darknet') return r.type === 'darknet_mention';
+            return true;
+          });
+      setCtiResults(filtered);
+      setCtiSearching(false);
+    }, 2500);
+  }, [ctiSearchType]);
 
   const totalFindings =
     findings.critical + findings.high + findings.medium + findings.low;
@@ -326,7 +419,172 @@ export default function TriageProcessPage() {
           </Card>
         </div>
       </div>
+      {/* CTI / OSINT Intelligence Panel */}
+      <div className="mt-6">
+        <Card>
+          <CardHeader
+            title="Cyber Threat Intelligence (CTI)"
+            description="OSINT search for PII, leaked credentials, and darknet mentions"
+          />
+          <div className="mt-4 space-y-4">
+            {/* Search Controls */}
+            <div className="flex flex-wrap gap-3">
+              <div className="flex-1 min-w-[200px] relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  type="text"
+                  value={ctiQuery}
+                  onChange={(e) => setCtiQuery(e.target.value)}
+                  placeholder="Search domain, email, IP, or keyword..."
+                  className="input pl-10"
+                />
+              </div>
+              <div className="flex gap-1">
+                {([
+                  { id: 'all', label: 'All Sources', icon: <Globe className="w-3 h-3" /> },
+                  { id: 'pii', label: 'PII / Leaks', icon: <User className="w-3 h-3" /> },
+                  { id: 'credentials', label: 'Credentials', icon: <KeyRound className="w-3 h-3" /> },
+                  { id: 'darknet', label: 'Darknet', icon: <Eye className="w-3 h-3" /> },
+                ] as const).map((type) => (
+                  <Tooltip key={type.id} content={`Search ${type.label}`}>
+                    <button
+                      onClick={() => setCtiSearchType(type.id)}
+                      className={cn(
+                        'flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors',
+                        ctiSearchType === type.id
+                          ? 'bg-forensic-100 text-forensic-700 dark:bg-forensic-900/30 dark:text-forensic-300'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-700'
+                      )}
+                    >
+                      {type.icon}
+                      {type.label}
+                    </button>
+                  </Tooltip>
+                ))}
+              </div>
+              <Tooltip content="Search public OSINT sources and darknet databases">
+                <Button
+                  onClick={handleCTISearch}
+                  isLoading={ctiSearching}
+                  leftIcon={<Search className="w-4 h-4" />}
+                  size="sm"
+                >
+                  Search CTI
+                </Button>
+              </Tooltip>
+            </div>
+
+            {/* Search Results */}
+            {ctiSearching && (
+              <div className="flex items-center gap-3 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
+                <Loader2 className="w-5 h-5 animate-spin text-forensic-500" />
+                <div>
+                  <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Searching threat intelligence sources...</p>
+                  <p className="text-xs text-slate-500">Querying OSINT databases, breach databases, paste sites, darknet forums</p>
+                </div>
+              </div>
+            )}
+
+            {ctiResults.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-sm text-slate-500">
+                  <AlertTriangle className="w-4 h-4 text-yellow-500" />
+                  <span>{ctiResults.length} results found across open and dark sources</span>
+                </div>
+                {ctiResults.map((result) => (
+                  <CTIResultCard key={result.id} result={result} />
+                ))}
+              </div>
+            )}
+
+            {!ctiSearching && ctiResults.length === 0 && (
+              <div className="text-center py-6 text-slate-400">
+                <Globe className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">Run a CTI search to discover exposed data, leaked credentials, and darknet mentions</p>
+                <p className="text-xs mt-1">Sources: OSINT databases, breach databases, paste sites, darknet forums, public repos</p>
+              </div>
+            )}
+          </div>
+        </Card>
+      </div>
     </PageContainer>
+  );
+}
+
+/**
+ * CTI Result Card Component
+ */
+function CTIResultCard({ result }: { result: CTIResult }) {
+  const [expanded, setExpanded] = useState(false);
+
+  const typeIcons: Record<CTIResult['type'], React.ReactNode> = {
+    pii_exposure: <User className="w-4 h-4" />,
+    leaked_credentials: <KeyRound className="w-4 h-4" />,
+    darknet_mention: <Eye className="w-4 h-4" />,
+    paste_site: <FileSearch className="w-4 h-4" />,
+    breach_database: <Database className="w-4 h-4" />,
+  };
+
+  const typeLabels: Record<CTIResult['type'], string> = {
+    pii_exposure: 'PII Exposure',
+    leaked_credentials: 'Leaked Credentials',
+    darknet_mention: 'Darknet Mention',
+    paste_site: 'Paste Site',
+    breach_database: 'Breach Database',
+  };
+
+  const severityColors: Record<string, string> = {
+    critical: 'border-l-red-500 bg-red-50/50 dark:bg-red-900/10',
+    high: 'border-l-orange-500 bg-orange-50/50 dark:bg-orange-900/10',
+    medium: 'border-l-yellow-500 bg-yellow-50/50 dark:bg-yellow-900/10',
+    low: 'border-l-green-500 bg-green-50/50 dark:bg-green-900/10',
+  };
+
+  return (
+    <div
+      className={cn(
+        'border-l-4 rounded-lg p-4 cursor-pointer transition-colors',
+        severityColors[result.severity]
+      )}
+      onClick={() => setExpanded(!expanded)}
+    >
+      <div className="flex items-start gap-3">
+        <div className="text-slate-400 mt-0.5">{typeIcons[result.type]}</div>
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-1">
+            <span className={cn(
+              'px-2 py-0.5 rounded text-xs font-medium',
+              result.severity === 'critical' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+              result.severity === 'high' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
+              'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+            )}>
+              {result.severity}
+            </span>
+            <span className="text-xs text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded">
+              {typeLabels[result.type]}
+            </span>
+            <span className="text-xs text-slate-400 ml-auto">{result.date}</span>
+          </div>
+          <h4 className="text-sm font-medium text-slate-900 dark:text-slate-100">{result.title}</h4>
+          <p className="text-xs text-slate-500 mt-1">{result.description}</p>
+          <p className="text-xs text-slate-400 mt-1">Source: {result.source}</p>
+
+          {expanded && (
+            <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
+              <p className="text-xs font-medium text-slate-500 uppercase mb-2">Indicators Found</p>
+              <div className="space-y-1">
+                {result.indicators.map((indicator, idx) => (
+                  <div key={idx} className="flex items-center gap-2 text-xs">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                    <span className="font-mono text-slate-600 dark:text-slate-400">{indicator}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
