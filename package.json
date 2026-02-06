@@ -10,7 +10,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "serve": "vite preview --host",
-    "deploy:ghpages": "npm run build:ghpages && gh-pages -d dist",
+    "deploy:ghpages": "npm run build:ghpages && cp dist/index.html dist/404.html && touch dist/.nojekyll && gh-pages -d dist --dotfiles",
     "deploy": "npm run build"
   },
   "dependencies": {
